@@ -1,0 +1,1 @@
+{"Black":"040403","White":"ffffff","Mauve Magic":"ca7df9","Celadon":"aef6c7"}

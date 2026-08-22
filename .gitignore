@@ -1,0 +1,16 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.DS_Store
+.vite
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Contains real Firestore project structure + the owner's email address
+firestore.rules
+
+# Personal resume PDF (PII)
+docs/Girwan_Dhakal_Resume.pdf
