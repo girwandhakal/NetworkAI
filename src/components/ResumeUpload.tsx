@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import { Icon } from './Icon'
+import { useAuth } from '../state/Auth'
 import { useToast } from '../state/Toast'
 import { parseResume } from '../lib/api'
 import { blobToBase64 } from '../lib/media'
+import { uploadResumeFile } from '../lib/storage'
 import type { ParsedResume } from '../lib/types'
 
 const MAX_MB = 12
@@ -21,6 +23,7 @@ export function ResumeUpload({
   compact?: boolean
   label?: string
 }) {
+  const { user } = useAuth()
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -44,7 +47,15 @@ export function ResumeUpload({
             mimeType: file.type || 'application/pdf',
             fileName: file.name,
           })
-      await onParsed({ ...parsed, resumeFileName: parsed.resumeFileName || file.name })
+      // Keep the actual file, not just its extracted text — it's what gets
+      // viewed back and what "append resume" attaches to an email.
+      const mimeType = file.type || 'application/octet-stream'
+      const uploaded = user ? await uploadResumeFile(user.uid, file, mimeType).catch(() => null) : null
+      await onParsed({
+        ...parsed,
+        resumeFileName: parsed.resumeFileName || file.name,
+        ...(uploaded ? { resumeUrl: uploaded.url, resumeStoragePath: uploaded.storagePath, resumeMimeType: mimeType } : {}),
+      })
       toast.ok('Resume saved.')
     } catch (e) {
       toast.err(e)

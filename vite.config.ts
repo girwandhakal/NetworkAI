@@ -16,11 +16,6 @@ export default defineConfig(({ mode }) => {
           target: `http://localhost:${apiPort}`,
           changeOrigin: true,
         },
-        // The resume lives in docs/ and is served by the API process.
-        '/resume.pdf': {
-          target: `http://localhost:${apiPort}`,
-          changeOrigin: true,
-        },
         // PDF.js cmaps and standard fonts, streamed from node_modules.
         '/pdfjs': {
           target: `http://localhost:${apiPort}`,

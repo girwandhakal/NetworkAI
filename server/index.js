@@ -17,7 +17,7 @@ import {
   followupSystem,
   memoryBlock,
 } from './prompts.js'
-import { sendBatch, mailStatus, findResumeFile } from './mailer.js'
+import { sendBatch, mailStatus } from './mailer.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -235,23 +235,42 @@ app.post(
         body: clean(m.body),
         replyTo: clean(m.replyTo),
         attachResume: Boolean(m.attachResume),
+        resumeUrl: clean(m.resumeUrl),
+        resumeFileName: clean(m.resumeFileName) || 'resume.pdf',
       })),
     )
     res.json({ results, sent: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length })
   }),
 )
 
-/* ── GET /resume.pdf ─────────────────────────────────────── */
+/* ── GET /api/resume-file (proxy) ─────────────────────────── */
 
-// Served straight out of docs/ so that folder stays the single source of
-// truth — drop a new PDF in and it is live, no copying or rebuild.
-app.get('/resume.pdf', (_req, res) => {
-  const file = findResumeFile()
-  if (!file) return res.status(404).json({ error: 'No PDF found in docs/.' })
-  res.type('application/pdf')
-  res.setHeader('Content-Disposition', 'inline; filename="resume.pdf"')
-  res.sendFile(file)
-})
+// The resume lives in Firebase Storage, fetched by the client straight from
+// its download URL for viewing normally — but pdf.js's range-request fetches
+// need CORS the Storage bucket may not grant, so the viewer routes through
+// here instead: same-origin to the browser, a plain server-side fetch to
+// Storage (CORS is a browser rule, not a server one).
+const RESUME_HOSTS = new Set(['firebasestorage.googleapis.com'])
+
+app.get(
+  '/api/resume-file',
+  route(async (req, res) => {
+    const raw = String(req.query.url || '')
+    if (!ok(raw)) throw bad('Missing url.')
+    let target
+    try {
+      target = new URL(raw)
+    } catch {
+      throw bad('Invalid url.')
+    }
+    if (!RESUME_HOSTS.has(target.hostname)) throw bad('That url is not a Firebase Storage file.')
+
+    const upstream = await fetch(target.toString()).catch(() => null)
+    if (!upstream || !upstream.ok) throw bad('Could not fetch the resume file.')
+    res.type(upstream.headers.get('content-type') || 'application/pdf')
+    res.send(Buffer.from(await upstream.arrayBuffer()))
+  }),
+)
 
 /* ── PDF.js support assets ───────────────────────────────── */
 

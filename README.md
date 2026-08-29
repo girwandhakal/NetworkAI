@@ -100,9 +100,11 @@ Bulk sends are throttled — `MAIL_THROTTLE_MS` (default 1200ms) is the gap betw
 
 ## Your resume
 
-Drop a PDF in `docs/`. The **Resume** tab is a viewer for it, and the first time it loads the file is parsed once in the background so drafts can quote real details from it. Replace the PDF and it is live — no rebuild.
+There's no profile form anywhere — name, school, major, target roles, all of it comes straight off your resume. Upload one during onboarding, or later from the **Resume** tab or **Me → Resume**; parsing it is what fills in the rest. Uploading a newer one re-parses and replaces everything, including the file itself — that's the only way to change any of it.
 
-Note that most mobile browsers refuse to render a PDF inline; on those you get a tap-to-open button instead of an embedded preview.
+The actual file (not just its extracted text) is kept in Firebase Storage, which is also what "append resume" on a follow-up email attaches at send time. Pasting text instead of uploading a file gets you the extracted profile fields but nothing to preview or attach — there's no document behind it to keep.
+
+Note that most mobile browsers refuse to render a PDF inline; on those you get a tap-to-open button instead of an embedded preview. Non-PDF resumes (Word, plain text) get parsed the same way but aren't previewable in-app either.
 
 ---
 
@@ -130,7 +132,7 @@ Event  ("Fall 2026 Tech Career Fair")
 | Endpoint | What it does |
 | --- | --- |
 | `GET /api/health` | Reports whether OpenAI and email are configured |
-| `GET /resume.pdf` | Serves the PDF in `docs/` — the Resume tab is a viewer for it |
+| `GET /api/resume-file` | Proxies the uploaded resume from Firebase Storage for the in-app viewer (sidesteps a browser CORS restriction the direct Storage URL would hit) |
 | `POST /api/parse-resume` | PDF/Word/text resume → structured profile + transcript |
 | `POST /api/generate-context` | Every photo/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
 | `POST /api/generate-followup` | Rewrites the follow-ups in a different tone, or to a freeform instruction |

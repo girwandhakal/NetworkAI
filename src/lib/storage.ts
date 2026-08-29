@@ -1,9 +1,10 @@
 /**
- * Persists the raw bytes behind a context item (photo, voice note) so
- * regeneration can re-read it later — a different day, a different device.
- * Firestore only ever holds the resulting metadata + download URL; the
- * bytes live in Firebase Storage under the same /users/{uid} boundary the
- * Firestore rules already enforce.
+ * Persists raw files — a context item (photo, voice note) or the user's
+ * resume — so they can be read back later: regeneration re-reads context,
+ * and the resume is both viewed and attached to emails from here. Firestore
+ * only ever holds the resulting metadata + download URL; the bytes live in
+ * Firebase Storage under the same /users/{uid} boundary the Firestore rules
+ * already enforce.
  *
  * With no Firebase project configured (or in demo mode, which swaps the
  * whole data layer for an in-memory store), there is nothing real to upload
@@ -23,7 +24,18 @@ const memory = new Map<string, string>() // item id -> base64, used when hasReal
 const contextPath = (uid: string, eventId: string, contactId: string, itemId: string) =>
   `users/${uid}/events/${eventId}/contacts/${contactId}/context/${itemId}`
 
-export async function uploadContextFile(
+async function uploadRaw(storagePath: string, blob: Blob, mimeType: string): Promise<{ storagePath: string; url: string }> {
+  if (!hasRealStorage()) {
+    memory.set(storagePath, await blobToBase64(blob))
+    return { storagePath, url: URL.createObjectURL(blob) }
+  }
+  const objectRef = ref(storage, storagePath)
+  await uploadBytes(objectRef, blob, { contentType: mimeType })
+  const url = await getDownloadURL(objectRef)
+  return { storagePath, url }
+}
+
+export function uploadContextFile(
   uid: string,
   eventId: string,
   contactId: string,
@@ -31,15 +43,13 @@ export async function uploadContextFile(
   blob: Blob,
   mimeType: string,
 ): Promise<{ storagePath: string; url: string }> {
-  if (!hasRealStorage()) {
-    memory.set(itemId, await blobToBase64(blob))
-    return { storagePath: itemId, url: URL.createObjectURL(blob) }
-  }
-  const storagePath = contextPath(uid, eventId, contactId, itemId)
-  const objectRef = ref(storage, storagePath)
-  await uploadBytes(objectRef, blob, { contentType: mimeType })
-  const url = await getDownloadURL(objectRef)
-  return { storagePath, url }
+  return uploadRaw(contextPath(uid, eventId, contactId, itemId), blob, mimeType)
+}
+
+/** One resume per user, at a fixed path — a re-upload overwrites the
+ *  previous file rather than piling up old versions. */
+export function uploadResumeFile(uid: string, blob: Blob, mimeType: string): Promise<{ storagePath: string; url: string }> {
+  return uploadRaw(`users/${uid}/resume`, blob, mimeType)
 }
 
 /** Base64, ready to drop straight into a context item sent to the server. */

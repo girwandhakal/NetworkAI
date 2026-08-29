@@ -123,7 +123,9 @@ export function ContactDetail() {
           subject: c.emailSubject || `Following up from ${event?.name || 'the career fair'}`,
           body: c.emailDraft || '',
           replyTo: profile?.email || user?.email || '',
-          attachResume: Boolean(c.attachResume),
+          attachResume: Boolean(c.attachResume && profile?.resumeUrl),
+          resumeUrl: profile?.resumeUrl,
+          resumeFileName: profile?.resumeFileName,
         },
       ])
       const r = results[0]
@@ -303,11 +305,14 @@ export function ContactDetail() {
               className="row gap2 mt4"
               onClick={() => patch({ attachResume: !c.attachResume })}
               style={{ width: '100%' }}
+              disabled={!profile?.resumeUrl}
             >
-              <span className={`checkbox${c.attachResume ? ' on' : ''}`}>
+              <span className={`checkbox${c.attachResume && profile?.resumeUrl ? ' on' : ''}`}>
                 <Icon name="check" size={12} strokeWidth={2.8} />
               </span>
-              <span className="t-sm muted">Append resume to email</span>
+              <span className="t-sm muted">
+                {profile?.resumeUrl ? 'Append resume to email' : 'Append resume — upload one on the Me tab first'}
+              </span>
             </button>
 
             <button className="btn btn-go btn-full mt3" disabled={Boolean(busy) || !isEmail(c.email)} onClick={send}>
