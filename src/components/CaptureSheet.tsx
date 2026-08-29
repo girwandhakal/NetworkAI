@@ -6,7 +6,7 @@ import { useAuth } from '../state/Auth'
 import { useToast } from '../state/Toast'
 import { createContact, createEvent } from '../lib/db'
 import { addContextItem, type AddContextInput } from '../lib/context'
-import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
+import { canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
 import { clock, todayISO } from '../lib/util'
 import { CONTEXT_KIND, DEFAULT_TONE, type ContextItem, type EventRec, type Tone } from '../lib/types'
 
@@ -23,8 +23,8 @@ export interface CaptureItem {
 }
 
 /** The one contact this sheet session is building up — any mix of photos,
- *  videos, voice notes, and typed notes can pile onto it before "Done",
- *  each one triggering a fresh regeneration from the whole context. */
+ *  voice notes, and typed notes can pile onto it before "Done", each one
+ *  triggering a fresh regeneration from the whole context. */
 interface Session {
   eventId: string
   contactId: string
@@ -68,10 +68,9 @@ export function CaptureSheet({
   const [secs, setSecs] = useState(0)
   const [bars, setBars] = useState<number[]>(Array(11).fill(0.08))
 
-  // photo / video — the inputs stay mounted for the whole sheet so both the
-  // initial tiles and the session hub's buttons can open them.
+  // photo — the input stays mounted for the whole sheet so both the initial
+  // tile and the session hub's button can open it.
   const fileRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLInputElement>(null)
 
   // typed note
   const [text, setText] = useState('')
@@ -163,7 +162,7 @@ export function CaptureSheet({
 
   /** Upload/append one item into the contact's standing context, queue a
    *  regeneration pass, and reflect it in the session hub. Every add goes
-   *  through here — a photo, a video, a voice note, or a typed note. */
+   *  through here — a photo, a voice note, or a typed note. */
   async function addContext(
     s: Session,
     input: AddContextInput,
@@ -253,33 +252,6 @@ export function CaptureSheet({
     }
   }
 
-  /* ── video — a single file, no in-app recording ──────────── */
-
-  async function onVideo(list: FileList | null) {
-    // The `accept="video/*"` picker already restricts the choice; some
-    // mobile camera integrations hand back a freshly-recorded file with no
-    // `type` at all, so an empty type is trusted rather than rejected.
-    const file = Array.from(list || []).find((f) => !f.type || f.type.startsWith('video/'))
-    if (!file) {
-      if (list && list.length) toast.err('That is not a video file.')
-      return
-    }
-    if (file.size > MAX_VIDEO_BYTES) {
-      toast.err(`That video is too large (max ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB).`)
-      return
-    }
-    setBusy('video')
-    try {
-      if (!user) throw new Error('Not signed in.')
-      const s = await ensureSession()
-      await addContext(s, { kind: 'video', blob: file, mimeType: file.type || 'video/mp4' })
-    } catch (e) {
-      toast.err(e)
-    } finally {
-      setBusy('')
-    }
-  }
-
   /* ── typed ─────────────────────────────────────────────── */
 
   async function saveTyped() {
@@ -339,7 +311,7 @@ export function CaptureSheet({
       }
     >
       {/* Mounted for the whole sheet so both the pick screen and the session
-          hub can open them. `multiple` lets the OS gallery picker multi-select. */}
+          hub can open it. `multiple` lets the OS gallery picker multi-select. */}
       <input
         ref={fileRef}
         type="file"
@@ -351,23 +323,12 @@ export function CaptureSheet({
           e.target.value = ''
         }}
       />
-      <input
-        ref={videoRef}
-        type="file"
-        accept="video/*"
-        hidden
-        onChange={(e) => {
-          void onVideo(e.target.files)
-          e.target.value = ''
-        }}
-      />
 
       {mode === 'pick' && (
         <>
           <div className="col gap3">
             <CaptureOption icon="mic" title="Voice note" accent="mauve" disabled={!canRecord()} onClick={() => setMode('voice')} />
             <CaptureOption icon="camera" title="Image" accent="celadon" onClick={() => fileRef.current?.click()} />
-            <CaptureOption icon="video" title="Video" onClick={() => videoRef.current?.click()} />
             <CaptureOption icon="text" title="Type it" onClick={() => setMode('type')} />
           </div>
           {eventPicker}
@@ -448,38 +409,30 @@ export function CaptureSheet({
             {session.items.map((item, i) => (
               <CaptureChip key={i} item={item} />
             ))}
-            {(busy === 'img' || busy === 'video') && (
+            {busy === 'img' && (
               <span className="capture-chip capture-chip-pending">
                 <span className="spin" />
               </span>
             )}
           </div>
 
-          <div className="col gap2">
-            <div className="row gap2">
-              <button className="btn btn-ghost grow" onClick={() => fileRef.current?.click()} disabled={Boolean(busy)}>
-                {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
-                Photo
-              </button>
-              <button className="btn btn-ghost grow" onClick={() => videoRef.current?.click()} disabled={Boolean(busy)}>
-                {busy === 'video' ? <span className="spin" /> : <Icon name="video" size={15} />}
-                Video
-              </button>
-            </div>
-            <div className="row gap2">
-              <button
-                className="btn btn-ghost grow"
-                onClick={() => setMode('voice')}
-                disabled={Boolean(busy) || !canRecord()}
-              >
-                <Icon name="mic" size={15} />
-                Voice
-              </button>
-              <button className="btn btn-ghost grow" onClick={() => setMode('type')} disabled={Boolean(busy)}>
-                <Icon name="text" size={15} />
-                Text
-              </button>
-            </div>
+          <div className="row gap2">
+            <button className="btn btn-ghost grow" onClick={() => fileRef.current?.click()} disabled={Boolean(busy)}>
+              {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
+              Photo
+            </button>
+            <button
+              className="btn btn-ghost grow"
+              onClick={() => setMode('voice')}
+              disabled={Boolean(busy) || !canRecord()}
+            >
+              <Icon name="mic" size={15} />
+              Voice
+            </button>
+            <button className="btn btn-ghost grow" onClick={() => setMode('type')} disabled={Boolean(busy)}>
+              <Icon name="text" size={15} />
+              Text
+            </button>
           </div>
 
           <button className="btn btn-go btn-full" onClick={() => afterSave(session)} disabled={Boolean(busy)}>
@@ -512,7 +465,7 @@ function CaptureOption({
   onClick,
   disabled,
 }: {
-  icon: 'mic' | 'camera' | 'text' | 'video'
+  icon: 'mic' | 'camera' | 'text'
   title: string
   accent?: 'mauve' | 'celadon'
   onClick(): void

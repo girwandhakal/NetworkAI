@@ -54,13 +54,6 @@ export async function compressImage(file: Blob): Promise<{ blob: Blob; mimeType:
   return { blob, mimeType: 'image/jpeg', preview: URL.createObjectURL(blob) }
 }
 
-/* ── video ───────────────────────────────────────────────── */
-
-// Video is stored whole (no client-side compression) and kept for the
-// record even though the model can't see it directly (see server/openai.js),
-// so it is capped to a size that stays Storage-friendly.
-export const MAX_VIDEO_BYTES = 25 * 1024 * 1024
-
 /* ── audio ───────────────────────────────────────────────── */
 
 const TARGET_RATE = 16000

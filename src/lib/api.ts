@@ -72,7 +72,7 @@ export function parseResume(input: { data?: string; mimeType?: string; fileName?
 }
 
 export interface ContextItemInput {
-  kind: 'photo' | 'video' | 'audio' | 'text'
+  kind: 'photo' | 'audio' | 'text'
   mimeType?: string
   /** base64 — omitted for a typed note. */
   data?: string

@@ -42,8 +42,6 @@ OPENAI_API_KEY=your-key
 
 Text and image capture use `gpt-4o` by default; voice notes are transcribed with `whisper-1` first, then folded in as text. Override either with `OPENAI_MODEL` / `OPENAI_TRANSCRIBE_MODEL`.
 
-**Video is captured and kept, but not "seen."** No OpenAI chat/vision model accepts raw video today, so a captured video is stored (and viewable from the Context section) but is swapped for a short text placeholder when building the AI request — it doesn't contribute to the extracted fields, notes, or draft the way a photo or voice note does.
-
 ### 2. Firebase project — required
 
 Your data lives in **your own** Firebase project. At https://console.firebase.google.com:
@@ -52,7 +50,7 @@ Your data lives in **your own** Firebase project. At https://console.firebase.go
 2. **Build → Authentication → Sign-in method** → enable **Email/Password**. Enable **Google** too if you want the Google button to work.
 3. **Build → Firestore Database → Create database** (production mode is fine — the rules below lock it down).
 4. **Firestore → Rules** → paste the contents of [`firestore.rules`](firestore.rules) → **Publish**.
-5. **Build → Storage → Get started** (production mode). This is where every photo, video, and voice note you capture is kept, so a contact's context survives closing the app and comes back on any device.
+5. **Build → Storage → Get started** (production mode). This is where every photo and voice note you capture is kept, so a contact's context survives closing the app and comes back on any device.
 6. **Storage → Rules** → paste the contents of [`storage.rules`](storage.rules) → **Publish**.
 7. **Project settings → Your apps → Web app** → copy the config values into `.env`:
 
@@ -119,7 +117,7 @@ Event  ("Fall 2026 Tech Career Fair")
 
 **Capture is fire-and-forget.** Tapping stop writes the contact record immediately, then the upload and extraction run in the background — so nothing blocks you before the next booth. Firestore's local cache absorbs the write when you are offline, and an IndexedDB job queue holds the regeneration until the connection comes back. The queue depth shows in a bar at the top of the app.
 
-**A contact keeps every photo, video, voice note, and typed note you ever add to it as standing context** — not just the one that created it. Adding another one re-reads all of it together and rewrites the extracted fields, the notes, the email, and the LinkedIn note as one coherent pass, the way Claude or Gemini "projects" work. Several items added in one go (three photos at once, say) still cost one regeneration, not one per item.
+**A contact keeps every photo, voice note, and typed note you ever add to it as standing context** — not just the one that created it. Adding another one re-reads all of it together and rewrites the extracted fields, the notes, the email, and the LinkedIn note as one coherent pass, the way Claude or Gemini "projects" work. Several items added in one go (three photos at once, say) still cost one regeneration, not one per item.
 
 **Nothing gates you behind a review step.** Extraction is never perfect, so instead: every field is inline-editable on the contact record, low-confidence extractions get a visible "worth a second look" flag with the model's own confidence number, and context items can be added or removed from the record at any time.
 
@@ -134,7 +132,7 @@ Event  ("Fall 2026 Tech Career Fair")
 | `GET /api/health` | Reports whether OpenAI and email are configured |
 | `GET /resume.pdf` | Serves the PDF in `docs/` — the Resume tab is a viewer for it |
 | `POST /api/parse-resume` | PDF/Word/text resume → structured profile + transcript |
-| `POST /api/generate-context` | Every photo/video/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
+| `POST /api/generate-context` | Every photo/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
 | `POST /api/generate-followup` | Rewrites the follow-ups in a different tone, or to a freeform instruction |
 | `POST /api/send-email` | Sends one or many, throttled, with per-recipient results |
 
@@ -152,4 +150,4 @@ Event  ("Fall 2026 Tech Career Fair")
 
 ## Privacy
 
-Single-user by design. Contact details and your resume go to OpenAI to produce the summaries and drafts — that is the tradeoff the app is built on. Voice notes are additionally sent to OpenAI's transcription endpoint before that. Photos, videos, and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, gated by `storage.rules` the same way Firestore is. One caveat that rules can't close: each file's download URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — normal Firebase Storage behavior, not a bug specific to this app, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to OpenAI for that one request, it does not persist anything itself.
+Single-user by design. Contact details and your resume go to OpenAI to produce the summaries and drafts — that is the tradeoff the app is built on. Voice notes are additionally sent to OpenAI's transcription endpoint before that. Photos and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, gated by `storage.rules` the same way Firestore is. One caveat that rules can't close: each file's download URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — normal Firebase Storage behavior, not a bug specific to this app, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to OpenAI for that one request, it does not persist anything itself.

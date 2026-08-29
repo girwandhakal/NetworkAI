@@ -1,5 +1,5 @@
 /**
- * Persists the raw bytes behind a context item (photo, video, voice note) so
+ * Persists the raw bytes behind a context item (photo, voice note) so
  * regeneration can re-read it later — a different day, a different device.
  * Firestore only ever holds the resulting metadata + download URL; the
  * bytes live in Firebase Storage under the same /users/{uid} boundary the

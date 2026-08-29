@@ -25,9 +25,9 @@ const app = express()
 
 app.use(cors())
 app.use(compression())
-// A contact's full context — several photos, a video, a voice note — arrives
+// A contact's full context — several photos, a voice note — arrives
 // base64-encoded in one JSON body.
-app.use(express.json({ limit: '60mb' }))
+app.use(express.json({ limit: '30mb' }))
 
 /* ── helpers ─────────────────────────────────────────────── */
 
@@ -128,7 +128,7 @@ app.post(
 /* ── POST /api/generate-context ──────────────────────────── */
 
 // A contact's context is read as one record every time it changes: every
-// photo, video, voice note, and typed note captured so far, in order.
+// photo, voice note, and typed note captured so far, in order.
 app.post(
   '/api/generate-context',
   route(async (req, res) => {

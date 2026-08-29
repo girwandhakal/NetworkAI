@@ -1119,8 +1119,8 @@ ul {
 }
 
 /* One item of standing context on a contact — a photo thumbnail, or a
-   plain icon chip standing in for a video / voice note / typed note
-   (there's nothing worth previewing). */
+   plain icon chip standing in for a voice note / typed note (there's
+   nothing worth previewing). */
 .capture-chip {
   width: 60px;
   height: 60px;
@@ -1136,11 +1136,6 @@ ul {
   background: var(--mauve-dim);
   border-color: var(--mauve-line);
   color: var(--mauve-ink);
-}
-.capture-chip-video {
-  background: var(--celadon-dim);
-  border-color: var(--celadon-line);
-  color: var(--celadon-ink);
 }
 .capture-chip-text {
   background: var(--surface-3);

@@ -59,16 +59,16 @@ export interface Summary {
   action: string
 }
 
-/** One piece of standing context on a contact — a photo, a video, a voice
- *  note, or a typed note. The whole list is re-read together every time
- *  another item is added, so this is what regeneration reads from, not a
- *  transient capture payload. */
+/** One piece of standing context on a contact — a photo, a voice note, or a
+ *  typed note. The whole list is re-read together every time another item
+ *  is added, so this is what regeneration reads from, not a transient
+ *  capture payload. */
 export interface ContextItem {
   id: string
-  kind: 'photo' | 'video' | 'audio' | 'text'
-  /** Storage object path — set for photo/video/audio, used to delete it. */
+  kind: 'photo' | 'audio' | 'text'
+  /** Storage object path — set for photo/audio, used to delete it. */
   storagePath?: string
-  /** Download URL — set for photo/video/audio, used to re-fetch bytes. */
+  /** Download URL — set for photo/audio, used to re-fetch bytes. */
   url?: string
   mimeType?: string
   /** Typed-note content, stored inline instead of in Storage. */
@@ -104,8 +104,8 @@ export interface Contact {
   unclear?: string[]
   docType?: string
   transcript?: string
-  /** Every photo, video, voice note, and typed note captured for this
-   *  contact — the standing context a regeneration pass reads in full. */
+  /** Every photo, voice note, and typed note captured for this contact —
+   *  the standing context a regeneration pass reads in full. */
   context?: ContextItem[]
   /** True while an offline-queued extraction is still waiting to run. */
   aiPending?: boolean
@@ -193,9 +193,8 @@ export function captureTypeFor(kind: ContextItem['kind']): Contact['captureType'
 /** The one place that names/iconifies a context item's kind — everywhere
  *  that shows a chip or a label for one should read from here rather than
  *  re-deriving its own mapping. */
-export const CONTEXT_KIND: Record<ContextItem['kind'], { label: string; icon: 'camera' | 'video' | 'mic' | 'text' }> = {
+export const CONTEXT_KIND: Record<ContextItem['kind'], { label: string; icon: 'camera' | 'mic' | 'text' }> = {
   photo: { label: 'Photo', icon: 'camera' },
-  video: { label: 'Video', icon: 'video' },
   audio: { label: 'Voice note', icon: 'mic' },
   text: { label: 'Typed note', icon: 'text' },
 }

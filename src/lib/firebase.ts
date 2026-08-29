@@ -18,7 +18,7 @@ const cfg = {
 }
 
 /** False when .env has not been filled in — the app shows a setup screen instead of crashing.
- *  storageBucket is included because context capture (photos/video/voice) depends on Storage
+ *  storageBucket is included because context capture (photos/voice notes) depends on Storage
  *  being configured just as much as auth/Firestore do — without it, getStorage() below throws. */
 export const firebaseReady = Boolean(cfg.apiKey && cfg.projectId && cfg.appId && cfg.storageBucket)
 

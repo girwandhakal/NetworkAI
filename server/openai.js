@@ -8,9 +8,6 @@
  *  - pdf     -> sent natively as `input_file`
  *  - audio   -> transcribed first via /v1/audio/transcriptions, then folded
  *               in as plain text — the Responses API has no raw-audio input
- *  - video   -> not supported by any OpenAI text/vision model today; swapped
- *               for a short text note so a captured video doesn't silently
- *               vanish or break the request, it just isn't "seen"
  */
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o'
@@ -87,11 +84,6 @@ async function toContent(parts) {
       content.push({
         type: 'input_text',
         text: transcript ? `[Transcribed audio]\n${transcript}` : '[An audio recording was captured here but nothing intelligible was transcribed.]',
-      })
-    } else if (mime.startsWith('video/')) {
-      content.push({
-        type: 'input_text',
-        text: '[A video was captured here. This model cannot process video directly, so it is not part of what it can see — only the surrounding photos, audio, and notes are.]',
       })
     } else {
       content.push({ type: 'input_file', filename: 'attachment', file_data: `data:${mime || 'application/octet-stream'};base64,${inline.data}` })

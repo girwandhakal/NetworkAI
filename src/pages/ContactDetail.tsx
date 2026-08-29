@@ -12,7 +12,7 @@ import { generateFollowup, sendEmails } from '../lib/api'
 import { addContextItem, type AddContextInput } from '../lib/context'
 import { enqueue } from '../lib/queue'
 import { deleteContextFile } from '../lib/storage'
-import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
+import { canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
 import { clock, isEmail, linkedinSearchUrl, STATUS_STYLE, timeAgo } from '../lib/util'
 import {
   CONTEXT_KIND,
@@ -457,7 +457,6 @@ function Recapture({
   const { events } = useData()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<Recorder | null>(null)
   const [mode, setMode] = useState<'hub' | 'text'>('hub')
   const [recording, setRecording] = useState(false)
@@ -542,29 +541,6 @@ function Recapture({
           }
         }}
       />
-      <input
-        ref={videoRef}
-        type="file"
-        accept="video/*"
-        hidden
-        onChange={async (e) => {
-          const file = Array.from(e.target.files || []).find((f) => !f.type || f.type.startsWith('video/'))
-          e.target.value = ''
-          if (!file) return
-          if (file.size > MAX_VIDEO_BYTES) {
-            toast.err(`That video is too large (max ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB).`)
-            return
-          }
-          setBusy('video')
-          try {
-            await add({ kind: 'video', blob: file, mimeType: file.type || 'video/mp4' })
-          } catch (err) {
-            toast.err(err)
-          } finally {
-            setBusy('')
-          }
-        }}
-      />
 
       {mode === 'text' ? (
         <>
@@ -596,55 +572,47 @@ function Recapture({
             </div>
           )}
 
-          <div className="col gap2">
-            <div className="row gap2">
-              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => fileRef.current?.click()}>
-                {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
-                Photo
-              </button>
-              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => videoRef.current?.click()}>
-                {busy === 'video' ? <span className="spin" /> : <Icon name="video" size={15} />}
-                Video
-              </button>
-            </div>
-            <div className="row gap2">
-              <button
-                className={`btn grow ${recording ? 'btn-go' : 'btn-ghost'}`}
-                disabled={Boolean(busy) || !canRecord()}
-                onClick={async () => {
-                  if (recording) {
-                    const rec = recRef.current
-                    recRef.current = null
-                    setRecording(false)
-                    if (!rec) return
-                    setBusy('audio')
-                    try {
-                      const wav = await rec.stop()
-                      await add({ kind: 'audio', blob: wav, mimeType: 'audio/wav' })
-                    } catch (err) {
-                      toast.err(err)
-                    } finally {
-                      setBusy('')
-                    }
-                  } else {
-                    try {
-                      recRef.current = await startRecording()
-                      setSecs(0)
-                      setRecording(true)
-                    } catch (err) {
-                      toast.err(err)
-                    }
+          <div className="row gap2">
+            <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => fileRef.current?.click()}>
+              {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
+              Photo
+            </button>
+            <button
+              className={`btn grow ${recording ? 'btn-go' : 'btn-ghost'}`}
+              disabled={Boolean(busy) || !canRecord()}
+              onClick={async () => {
+                if (recording) {
+                  const rec = recRef.current
+                  recRef.current = null
+                  setRecording(false)
+                  if (!rec) return
+                  setBusy('audio')
+                  try {
+                    const wav = await rec.stop()
+                    await add({ kind: 'audio', blob: wav, mimeType: 'audio/wav' })
+                  } catch (err) {
+                    toast.err(err)
+                  } finally {
+                    setBusy('')
                   }
-                }}
-              >
-                {busy === 'audio' ? <span className="spin" /> : <Icon name={recording ? 'stop' : 'mic'} size={15} />}
-                {recording ? clock(secs) : 'Voice'}
-              </button>
-              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
-                <Icon name="text" size={15} />
-                Text
-              </button>
-            </div>
+                } else {
+                  try {
+                    recRef.current = await startRecording()
+                    setSecs(0)
+                    setRecording(true)
+                  } catch (err) {
+                    toast.err(err)
+                  }
+                }
+              }}
+            >
+              {busy === 'audio' ? <span className="spin" /> : <Icon name={recording ? 'stop' : 'mic'} size={15} />}
+              {recording ? clock(secs) : 'Voice'}
+            </button>
+            <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
+              <Icon name="text" size={15} />
+              Text
+            </button>
           </div>
 
           {items.length > 0 && (
@@ -659,8 +627,8 @@ function Recapture({
   )
 }
 
-/* ── the contact's standing context — every photo, video, voice note,
-   and typed note captured so far ────────────────────────────────── */
+/* ── the contact's standing context — every photo, voice note, and
+   typed note captured so far ─────────────────────────────────────── */
 
 function ContextSection({
   contact,
@@ -727,10 +695,6 @@ function ContextSection({
 
       <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? CONTEXT_KIND[open.kind].label : ''}>
         {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 12 }} />}
-        {open?.kind === 'video' && open.url && (
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video src={open.url} controls style={{ width: '100%', borderRadius: 12 }} />
-        )}
         {open?.kind === 'audio' && open.url && <audio src={open.url} controls style={{ width: '100%' }} />}
         {open?.kind === 'text' && <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>{open.text}</p>}
 
