@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ContactRow } from '../components/ContactRow'
 import { Empty, Field, Sheet, SkeletonList } from '../components/Ui'
 import { useAuth } from '../state/Auth'
-import { useData } from '../state/Data'
+import { useData, type ContactWithEvent } from '../state/Data'
 import { useToast } from '../state/Toast'
 import { createEvent } from '../lib/db'
 import { formatDate, pluralize, relativeDay, todayISO } from '../lib/util'
@@ -13,14 +14,28 @@ export function Events() {
   const { user, profile } = useAuth()
   const { events, all, byEvent, loading, error } = useData()
   const [creating, setCreating] = useState(false)
-
-  const stats = useMemo(() => {
-    const drafts = all.filter(hasDraft).length
-    const todo = all.filter((c) => c.status === 'Needs follow-up').length
-    return { contacts: all.length, drafts, todo }
-  }, [all])
+  const [q, setQ] = useState('')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
 
   const firstName = (profile?.name || user?.displayName || '').trim().split(/\s+/)[0]
+
+  const query = q.trim().toLowerCase()
+
+  const sortedEvents = useMemo(() => {
+    const list = [...events].sort((a, b) => a.date.localeCompare(b.date))
+    if (sortDir === 'desc') list.reverse()
+    return list
+  }, [events, sortDir])
+
+  const matchingEvents = useMemo(
+    () => (query ? sortedEvents.filter((ev) => ev.name.toLowerCase().includes(query)) : sortedEvents),
+    [sortedEvents, query],
+  )
+
+  const matchingContacts = useMemo(
+    () => (query ? all.filter((c) => matchContact(c, query)) : []),
+    [all, query],
+  )
 
   return (
     <div className="page">
@@ -35,14 +50,6 @@ export function Events() {
         </div>
       </header>
 
-      {all.length > 0 && (
-        <div className="row gap2" style={{ marginBottom: 'var(--s5)' }}>
-          <Stat n={stats.contacts} label="captured" />
-          <Stat n={stats.drafts} label="drafted" tint="mauve" />
-          <Stat n={stats.todo} label="to send" tint="celadon" />
-        </div>
-      )}
-
       {error && (
         <div className="card mt3" style={{ borderColor: 'var(--danger-line)' }}>
           <div className="row gap2" style={{ color: 'var(--danger)' }}>
@@ -52,15 +59,45 @@ export function Events() {
         </div>
       )}
 
-      <div className="between" style={{ marginBottom: 'var(--s3)' }}>
-        <span className="t-label">Your events</span>
-        {events.length > 0 && (
-          <button className="btn btn-bare t-sm" onClick={() => setCreating(true)}>
-            <Icon name="plus" size={13} strokeWidth={2.2} />
-            New
-          </button>
-        )}
-      </div>
+      {events.length > 0 && (
+        <div className="search-bar mt2" style={{ marginBottom: 'var(--s5)' }}>
+          <Icon name="search" size={16} className="faint" />
+          <input
+            placeholder="Search events and contacts"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            inputMode="search"
+          />
+          {q && (
+            <button className="btn-bare" style={{ padding: 0, minHeight: 0 }} onClick={() => setQ('')} aria-label="Clear search">
+              <Icon name="x" size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {(!query || matchingEvents.length > 0 || events.length === 0) && (
+        <div className="between" style={{ marginBottom: 'var(--s3)' }}>
+          <span className="t-label">{query ? 'Events' : 'Your events'}</span>
+          <div className="row gap2">
+            {!query && events.length > 1 && (
+              <button
+                className={`sortbtn ${sortDir}`}
+                onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+              >
+                <Icon name="sort" size={13} strokeWidth={2} />
+                {sortDir === 'desc' ? 'Newest' : 'Oldest'}
+              </button>
+            )}
+            {!query && events.length > 0 && (
+              <button className="btn btn-bare t-sm" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={13} strokeWidth={2.2} />
+                New
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonList rows={3} />
@@ -76,9 +113,11 @@ export function Events() {
             </button>
           }
         />
-      ) : (
+      ) : query && matchingEvents.length === 0 && matchingContacts.length === 0 ? (
+        <Empty icon="search" title="Nothing matches" body={`Nothing mentions "${q}".`} />
+      ) : matchingEvents.length > 0 ? (
         <div className="col gap3">
-          {events.map((ev) => {
+          {matchingEvents.map((ev) => {
             const contacts = byEvent[ev.id] || []
             const todo = contacts.filter((c) => c.status === 'Needs follow-up').length
             const ready = contacts.filter(hasDraft).length
@@ -106,6 +145,19 @@ export function Events() {
             )
           })}
         </div>
+      ) : null}
+
+      {query && matchingContacts.length > 0 && (
+        <>
+          <div className="mt6" style={{ marginBottom: 'var(--s3)' }}>
+            <span className="t-label">{pluralize(matchingContacts.length, 'contact')}</span>
+          </div>
+          <div className="col gap3">
+            {matchingContacts.map((c) => (
+              <ContactRow key={c.id} c={c} eventId={c.eventId} showEvent={c.eventName} />
+            ))}
+          </div>
+        </>
       )}
 
       <NewEvent open={creating} onClose={() => setCreating(false)} uid={user?.uid || ''} />
@@ -113,17 +165,12 @@ export function Events() {
   )
 }
 
-function Stat({ n, label, tint }: { n: number; label: string; tint?: 'mauve' | 'celadon' }) {
-  return (
-    <div className="stat">
-      <div className="t-num" style={{ fontSize: 22, color: tint ? `var(--${tint}-ink)` : 'var(--ink)' }}>
-        {n}
-      </div>
-      <div className="t-sm faint" style={{ marginTop: -2 }}>
-        {label}
-      </div>
-    </div>
-  )
+function matchContact(c: ContactWithEvent, q: string): boolean {
+  return [c.name, c.company, c.title, c.email, c.notes, c.eventName, c.summary?.topic, c.summary?.details, c.summary?.connection]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+    .includes(q)
 }
 
 function NewEvent({ open, onClose, uid }: { open: boolean; onClose(): void; uid: string }) {

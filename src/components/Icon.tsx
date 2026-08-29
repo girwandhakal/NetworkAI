@@ -30,6 +30,7 @@ export type IconName =
   | 'text'
   | 'upload'
   | 'clock'
+  | 'sort'
 
 const P: Record<IconName, JSX.Element> = {
   events: (
@@ -163,6 +164,12 @@ const P: Record<IconName, JSX.Element> = {
     <>
       <circle cx="12" cy="12" r="9.2" />
       <path d="M12 6.8V12l3.4 2" />
+    </>
+  ),
+  sort: (
+    <>
+      <path d="M6.5 4v16M6.5 4 3 7.5M6.5 4 10 7.5" />
+      <path d="M17.5 20V4M17.5 20 14 16.5M17.5 20 21 16.5" />
     </>
   ),
 }

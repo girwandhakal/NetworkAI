@@ -40,7 +40,7 @@ Free key at **https://aistudio.google.com/apikey**.
 GEMINI_API_KEY=your-key
 ```
 
-All four AI endpoints use `gemini-2.5-flash`. Override with `GEMINI_MODEL` if you want a different one.
+All four AI endpoints use `gemini-3.6-flash`. Override with `GEMINI_MODEL` if you want a different one.
 
 ### 2. Firebase project — required
 

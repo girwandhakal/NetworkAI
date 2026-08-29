@@ -1,6 +1,11 @@
 import { GoogleGenAI } from '@google/genai'
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash'
+
+// Gemini 3.x replaced the legacy `thinkingBudget` (a token count, 0 allowed)
+// with `thinkingLevel` (LOW/MEDIUM/HIGH, no zero) — sending the old shape to
+// a 3.x model is a 400. 2.x models still only understand thinkingBudget.
+const THINKING_LEVELS = /^gemini-(?!1|2)\d/.test(MODEL)
 
 let client = null
 function ai() {
@@ -35,7 +40,11 @@ export async function generate({ system, parts, schema, thinking = 0, temperatur
     config.responseMimeType = 'application/json'
     config.responseSchema = schema
   }
-  if (typeof thinking === 'number') config.thinkingConfig = { thinkingBudget: thinking }
+  if (typeof thinking === 'number') {
+    config.thinkingConfig = THINKING_LEVELS
+      ? { thinkingLevel: thinking >= 256 ? 'MEDIUM' : 'LOW' }
+      : { thinkingBudget: thinking }
+  }
 
   let res
   try {
