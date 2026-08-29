@@ -1,6 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import nodemailer from 'nodemailer'
 
 /**
@@ -10,9 +7,6 @@ import nodemailer from 'nodemailer'
  * Bulk sends are throttled and reported per-recipient so one bad address
  * never silently kills the rest of the batch.
  */
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const docsDir = path.join(__dirname, '..', 'docs')
 
 export function mailMode() {
   if (process.env.RESEND_API_KEY) return 'resend'
@@ -39,19 +33,27 @@ function throttleMs() {
   return Number.isFinite(n) && n >= 0 ? n : 1200
 }
 
-/**
- * The one PDF in docs/, whatever it's named. Shared by the /resume.pdf route
- * and the "append resume" attachment path so there is a single place that
- * decides what "the resume" means.
- */
-export function findResumeFile() {
+// Only ever fetch the resume from Firebase Storage — resumeUrl is
+// client-supplied, so this keeps a compromised or buggy client from turning
+// this into an open fetch-anything proxy.
+const RESUME_HOSTS = new Set(['firebasestorage.googleapis.com'])
+
+/** The uploaded resume's bytes, straight from Firebase Storage — the same
+ *  file the user sees in the Resume tab, fetched fresh at send time rather
+ *  than cached anywhere server-side. */
+async function fetchResume(resumeUrl) {
+  let target
   try {
-    const pdfs = fs.readdirSync(docsDir).filter((f) => f.toLowerCase().endsWith('.pdf'))
-    if (!pdfs.length) return null
-    return path.join(docsDir, pdfs.sort()[0])
+    target = new URL(resumeUrl)
   } catch {
-    return null
+    throw new Error('The saved resume link is invalid. Re-upload it from the Me tab.')
   }
+  if (!RESUME_HOSTS.has(target.hostname)) {
+    throw new Error('The saved resume link is not a Firebase Storage file.')
+  }
+  const res = await fetch(target.toString())
+  if (!res.ok) throw new Error('Could not fetch the resume — try re-uploading it from the Me tab.')
+  return Buffer.from(await res.arrayBuffer())
 }
 
 let transporter = null
@@ -79,21 +81,20 @@ function textToHtml(text) {
   return `<div style="font-family:Sitka Text,Sitka,Georgia,serif;font-size:15px;line-height:1.55;color:#040403">${paras}</div>`
 }
 
-async function sendOne({ to, subject, body, replyTo, attachResume }) {
+async function sendOne({ to, subject, body, replyTo, attachResume, resumeUrl, resumeFileName }) {
   const from = mailFrom()
   if (!from) throw new Error('MAIL_FROM is not set.')
   const mode = mailMode()
 
-  let resumePath = ''
+  let resumeBytes = null
   if (attachResume) {
-    resumePath = findResumeFile()
-    if (!resumePath) throw new Error('Checked "append resume" but no PDF was found in docs/.')
+    if (!resumeUrl) throw new Error('Checked "append resume" but no resume is uploaded. Add one on the Me tab.')
+    resumeBytes = await fetchResume(resumeUrl)
   }
+  const filename = resumeFileName || 'resume.pdf'
 
   if (mode === 'resend') {
-    const attachments = resumePath
-      ? [{ filename: path.basename(resumePath), content: fs.readFileSync(resumePath).toString('base64') }]
-      : undefined
+    const attachments = resumeBytes ? [{ filename, content: resumeBytes.toString('base64') }] : undefined
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -116,7 +117,7 @@ async function sendOne({ to, subject, body, replyTo, attachResume }) {
   }
 
   if (mode === 'smtp') {
-    const attachments = resumePath ? [{ filename: path.basename(resumePath), path: resumePath }] : undefined
+    const attachments = resumeBytes ? [{ filename, content: resumeBytes }] : undefined
     const info = await smtp().sendMail({
       from,
       to,
@@ -135,7 +136,7 @@ async function sendOne({ to, subject, body, replyTo, attachResume }) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * messages: [{ id, to, subject, body, replyTo, attachResume }]
+ * messages: [{ id, to, subject, body, replyTo, attachResume, resumeUrl, resumeFileName }]
  * Always resolves; per-message outcomes come back in the results array.
  */
 export async function sendBatch(messages) {

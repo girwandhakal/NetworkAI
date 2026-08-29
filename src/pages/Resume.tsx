@@ -1,51 +1,58 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense } from 'react'
+import { Icon } from '../components/Icon'
+import { ResumeUpload } from '../components/ResumeUpload'
 import { useAuth } from '../state/Auth'
-import { parseResume } from '../lib/api'
-import { blobToBase64 } from '../lib/media'
-import { isDemo } from '../lib/demo'
+import { useToast } from '../state/Toast'
+import { mergeResume } from '../lib/types'
 
 // PDF.js is ~1.5MB with its worker — only fetched when this tab is opened.
 const PdfView = lazy(() => import('../components/PdfView'))
 
-const SRC = '/resume.pdf'
+/** Same-origin proxy for pdf.js's range-request fetches, which Firebase
+ *  Storage's CORS policy would otherwise block from the browser. */
+const proxied = (url: string) => `/api/resume-file?url=${encodeURIComponent(url)}`
 
 /**
- * Just the resume. The PDF is served out of docs/ by the API.
- *
- * The one thing happening off-screen: if the profile has no resume text yet,
- * the file is parsed once in the background so drafts can quote real details
- * from it. None of that is rendered.
+ * Just the resume — whatever the user last uploaded. There is no separate
+ * "add a resume" flow elsewhere; this tab, onboarding, and Me -> Resume all
+ * point at the same upload component and the same profile fields.
  */
 export function Resume() {
   const { profile, patchProfile } = useAuth()
+  const toast = useToast()
 
-  useEffect(() => {
-    if (isDemo() || profile?.resumeText?.trim()) return
-    let stop = false
-    void (async () => {
-      try {
-        const res = await fetch(SRC)
-        if (!res.ok) return
-        const parsed = await parseResume({
-          data: await blobToBase64(await res.blob()),
-          mimeType: 'application/pdf',
-          fileName: 'Resume',
-        })
-        if (stop) return
-        await patchProfile({
-          resumeText: parsed.resumeText,
-          resumeFileName: parsed.resumeFileName || 'Resume',
-          targetRoles: profile?.targetRoles?.trim() || parsed.targetRoles,
-          experiences: profile?.experiences?.trim() || parsed.experiences,
-        })
-      } catch {
-        /* the viewer works with or without the parsed text */
-      }
-    })()
-    return () => {
-      stop = true
-    }
-  }, [profile?.resumeText, profile?.targetRoles, profile?.experiences, patchProfile])
+  if (!profile?.resumeUrl) {
+    return (
+      <div className="page">
+        <header className="topbar">
+          <h1 className="t-display">Resume</h1>
+          <p className="t-sm faint mt2">
+            {profile?.resumeText?.trim()
+              ? "You pasted text instead of a file, so there's nothing to preview here — upload the actual document to see it and attach it to emails."
+              : 'Upload it once — your profile and email drafts are read straight off it.'}
+          </p>
+        </header>
+        <ResumeUpload onParsed={(r) => patchProfile(mergeResume(profile || {}, r)).then(() => toast.ok('Resume saved.')).catch((e) => toast.err(e))} />
+      </div>
+    )
+  }
+
+  const isPdf = (profile.resumeMimeType || '').includes('pdf')
+
+  if (!isPdf) {
+    return (
+      <div className="page">
+        <header className="topbar">
+          <h1 className="t-display clamp-1">{profile.resumeFileName || 'Resume'}</h1>
+          <p className="t-sm faint mt2">This file type can't be previewed here — replace it with a PDF from the Me tab, or open it as-is.</p>
+        </header>
+        <a className="btn btn-ghost" href={proxied(profile.resumeUrl)} target="_blank" rel="noreferrer">
+          <Icon name="external" size={15} />
+          Open it
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -61,7 +68,7 @@ export function Resume() {
           </div>
         }
       >
-        <PdfView src={SRC} />
+        <PdfView src={proxied(profile.resumeUrl)} />
       </Suspense>
     </div>
   )

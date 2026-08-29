@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ResumeUpload } from '../components/ResumeUpload'
 import { Confirm, SectionLabel } from '../components/Ui'
 import { useAuth } from '../state/Auth'
 import { useData } from '../state/Data'
 import { useToast } from '../state/Toast'
 import { health } from '../lib/api'
 import { drain, listJobs } from '../lib/queue'
-import type { HealthInfo } from '../lib/types'
+import { mergeResume, type HealthInfo } from '../lib/types'
 
 import { isDemo } from '../lib/demo'
 
 const DEMO = isDemo()
 
 export function Me() {
-  const { user, profile, logout } = useAuth()
+  const { user, profile, patchProfile, logout } = useAuth()
   const { all, queued, online, processing } = useData()
   const toast = useToast()
 
@@ -36,6 +38,37 @@ export function Me() {
         <h1 className="t-display break">{profile?.name || user?.displayName || 'You'}</h1>
         <p className="t-sm faint mt2 break">{user?.email}</p>
       </header>
+
+      {/* resume — the only source for name/school/major/target roles/etc.;
+          re-uploading is the only way any of it changes. */}
+      <div className="card mt4">
+        <SectionLabel>Resume</SectionLabel>
+        {profile?.resumeText?.trim() ? (
+          <div className="row gap3">
+            <span className="celadon">
+              <Icon name="resume" size={18} />
+            </span>
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="t-section clamp-1">{profile.resumeFileName || 'Resume saved'}</div>
+              <div className="t-sm faint" style={{ marginTop: 2 }}>
+                {profile.resumeText.trim().split(/\s+/).length.toLocaleString()} words
+              </div>
+            </div>
+            {profile.resumeUrl && (
+              <Link className="btn btn-ghost btn-sm" to="/resume">
+                View
+              </Link>
+            )}
+            <ResumeUpload
+              compact
+              label="Replace"
+              onParsed={(r) => patchProfile(mergeResume(profile || {}, r)).then(() => toast.ok('Resume updated.')).catch((e) => toast.err(e))}
+            />
+          </div>
+        ) : (
+          <ResumeUpload onParsed={(r) => patchProfile(mergeResume(profile || {}, r)).then(() => toast.ok('Resume saved.')).catch((e) => toast.err(e))} />
+        )}
+      </div>
 
       {/* linkedin progress */}
       {all.some((c) => c.linkedinNote) && (
