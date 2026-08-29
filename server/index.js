@@ -11,10 +11,8 @@ import {
   TONE_KEYS,
   resumeSchema,
   resumeSystem,
-  ocrSchema,
-  ocrSystem,
-  notesSchema,
-  notesSystem,
+  contextSchema,
+  contextSystem,
   followupSchema,
   followupSystem,
   memoryBlock,
@@ -27,8 +25,9 @@ const app = express()
 
 app.use(cors())
 app.use(compression())
-// Voice notes and photos arrive base64-encoded in the JSON body.
-app.use(express.json({ limit: '30mb' }))
+// A contact's full context — several photos, a video, a voice note — arrives
+// base64-encoded in one JSON body.
+app.use(express.json({ limit: '60mb' }))
 
 /* ── helpers ─────────────────────────────────────────────── */
 
@@ -126,26 +125,43 @@ app.post(
   }),
 )
 
-/* ── POST /api/ocr-card ──────────────────────────────────── */
+/* ── POST /api/generate-context ──────────────────────────── */
 
+// A contact's context is read as one record every time it changes: every
+// photo, video, voice note, and typed note captured so far, in order.
 app.post(
-  '/api/ocr-card',
+  '/api/generate-context',
   route(async (req, res) => {
-    const { image, mimeType } = req.body || {}
-    if (!ok(image)) throw bad('Send an image to extract.')
+    const { profile, contact, event, tone, items } = req.body || {}
+    const list = Array.isArray(items) ? items : []
+    if (!list.length) throw bad('Send at least one context item.')
+
+    const parts = [
+      { text: 'Everything below was captured about this contact, oldest first. Read it as one record.' },
+    ]
+    list.forEach((item, i) => {
+      if (item?.kind === 'text') {
+        if (!ok(item.text)) return
+        parts.push({ text: `--- item ${i + 1}: typed note ---\n${item.text.slice(0, 20000)}` })
+      } else if (ok(item?.data)) {
+        parts.push({ text: `--- item ${i + 1}: ${item.kind || 'file'} ---` })
+        parts.push(inlineData(item.data, item.mimeType, 'application/octet-stream'))
+      }
+    })
+    if (parts.length < 2) throw bad('None of the context items had usable content.')
 
     const out = await generate({
-      system: ocrSystem,
-      parts: [
-        { text: 'Identify this item and extract everything useful from it.' },
-        inlineData(image, mimeType, 'image/jpeg'),
-      ],
-      schema: ocrSchema,
-      thinking: 0,
-      temperature: 0.1,
+      system: contextSystem({ profile, contact, event, tone }),
+      parts,
+      schema: contextSchema,
+      // A little thinking budget here measurably improves the email; capture
+      // stays responsive because this call runs after the record already saved.
+      thinking: 512,
+      temperature: 0.6,
     })
 
-    const confidence = typeof out.confidence === 'number' ? Math.min(1, Math.max(0, out.confidence)) : 0.5
+    const s = out.summary || {}
+    const confidence = typeof out.confidence === 'number' ? Math.min(1, Math.max(0, out.confidence)) : 0.6
     res.json({
       docType: clean(out.docType) || 'Other',
       name: clean(out.name),
@@ -156,45 +172,6 @@ app.post(
       website: clean(out.website),
       linkedin: clean(out.linkedin),
       notes: clean(out.notes),
-      priority: ['High', 'Medium', 'Low'].includes(out.priority) ? out.priority : 'Medium',
-      confidence,
-      unclear: Array.isArray(out.unclear) ? out.unclear.filter(ok) : [],
-    })
-  }),
-)
-
-/* ── POST /api/summarize-notes ───────────────────────────── */
-
-app.post(
-  '/api/summarize-notes',
-  route(async (req, res) => {
-    const { transcript, audio, mimeType, profile, contact, event, tone } = req.body || {}
-    if (!ok(transcript) && !ok(audio)) throw bad('Send a voice recording or a typed note.')
-
-    const parts = []
-    if (ok(audio)) {
-      parts.push({ text: 'Transcribe this voice note, structure it, and write the follow-ups.' })
-      parts.push(inlineData(audio, mimeType, 'audio/wav'))
-    } else {
-      parts.push({ text: `Structure this note and write the follow-ups.\n\nNOTE:\n"""\n${transcript.slice(0, 20000)}\n"""` })
-    }
-
-    const out = await generate({
-      system: notesSystem({ profile, contact, event, tone }),
-      parts,
-      schema: notesSchema,
-      // A little thinking budget here measurably improves the email; capture
-      // stays under the 30s goal because this call runs after the record saves.
-      thinking: 512,
-      temperature: 0.7,
-    })
-
-    const s = out.summary || {}
-    res.json({
-      transcript: clean(out.transcript) || clean(transcript),
-      name: clean(out.name),
-      company: clean(out.company),
-      title: clean(out.title),
       summary: {
         topic: clean(s.topic),
         details: clean(s.details),
@@ -205,7 +182,8 @@ app.post(
       emailDraft: clean(out.emailDraft),
       linkedinNote: capLinkedin(out.linkedinNote),
       priority: ['High', 'Medium', 'Low'].includes(out.priority) ? out.priority : 'Medium',
-      confidence: typeof out.confidence === 'number' ? Math.min(1, Math.max(0, out.confidence)) : 0.6,
+      confidence,
+      unclear: Array.isArray(out.unclear) ? out.unclear.filter(ok) : [],
     })
   }),
 )

@@ -31,6 +31,7 @@ export type IconName =
   | 'upload'
   | 'clock'
   | 'sort'
+  | 'video'
 
 const P: Record<IconName, JSX.Element> = {
   events: (
@@ -170,6 +171,12 @@ const P: Record<IconName, JSX.Element> = {
     <>
       <path d="M6.5 4v16M6.5 4 3 7.5M6.5 4 10 7.5" />
       <path d="M17.5 20V4M17.5 20 14 16.5M17.5 20 21 16.5" />
+    </>
+  ),
+  video: (
+    <>
+      <rect x="2.6" y="6" width="13.6" height="12" rx="2.2" />
+      <path d="M16.2 10.2 21 7.4v9.2l-4.8-2.8z" />
     </>
   ),
 }

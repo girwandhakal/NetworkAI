@@ -9,8 +9,9 @@ import { useData } from '../state/Data'
 import { useToast } from '../state/Toast'
 import { deleteContact, updateContact, watchContact } from '../lib/db'
 import { generateFollowup, sendEmails } from '../lib/api'
-import { enqueue } from '../lib/queue'
-import { blobToBase64, canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
+import { addContextItem } from '../lib/context'
+import { deleteContextFile } from '../lib/storage'
+import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
 import { clock, isEmail, linkedinSearchUrl, STATUS_STYLE, timeAgo } from '../lib/util'
 import {
   DEFAULT_TONE,
@@ -19,6 +20,7 @@ import {
   TONE_BLURB,
   TONES,
   type Contact,
+  type ContextItem,
   type Tone,
 } from '../lib/types'
 
@@ -230,6 +232,8 @@ export function ContactDetail() {
           onSave={(v) => patch({ notes: v })}
         />
       </div>
+
+      <ContextSection contact={c} eventId={eventId} onAdd={() => setRedo(true)} />
 
       {/* ── email draft ── */}
       <div className="mt5">
@@ -451,6 +455,7 @@ function Recapture({
   const { events } = useData()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<Recorder | null>(null)
   const [mode, setMode] = useState<'hub' | 'text'>('hub')
   const [recording, setRecording] = useState(false)
@@ -460,6 +465,8 @@ function Recapture({
   const [text, setText] = useState('')
 
   const event = events.find((e) => e.id === eventId)
+  const tone = contact.emailTone || profile?.defaultTone || DEFAULT_TONE
+  const evContext = event ? { name: event.name, date: event.date, location: event.location } : null
 
   useEffect(() => {
     if (!recording) return
@@ -484,23 +491,10 @@ function Recapture({
     }
   }, [open])
 
-  async function queue(job: { kind: 'ocr' | 'notes'; data?: string; mimeType?: string; transcript?: string }, item: CaptureItem) {
+  async function add(input: Parameters<typeof addContextItem>[3], preview?: string) {
     if (!user) return
-    await updateContact(user.uid, eventId, contact.id, { aiPending: true, aiError: '' })
-    await enqueue({
-      uid: user.uid,
-      eventId,
-      contactId: contact.id,
-      tone: contact.emailTone || profile?.defaultTone || DEFAULT_TONE,
-      profile: profile || null,
-      event: event ? { name: event.name, date: event.date, location: event.location } : null,
-      // The queue merges against the live record when the job actually
-      // drains, so a stale copy here would only ever affect AI prompt
-      // context, never overwrite anything.
-      contact,
-      ...job,
-    })
-    setItems((prev) => [...prev, item])
+    await addContextItem(user.uid, eventId, contact.id, input, tone, profile || null, evContext)
+    setItems((prev) => [...prev, { kind: input.kind, preview }])
   }
 
   async function saveText() {
@@ -511,7 +505,7 @@ function Recapture({
     }
     setBusy('save')
     try {
-      await queue({ kind: 'notes', transcript: t }, { kind: 'text' })
+      await add({ kind: 'text', text: t })
       setText('')
       setMode('hub')
     } catch (err) {
@@ -522,7 +516,7 @@ function Recapture({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Capture again">
+    <Sheet open={open} onClose={onClose} title="Add to this contact">
       <input
         ref={fileRef}
         type="file"
@@ -536,9 +530,33 @@ function Recapture({
           setBusy('img')
           try {
             for (const file of files) {
-              const { base64, mimeType, preview } = await compressImage(file)
-              await queue({ kind: 'ocr', data: base64, mimeType }, { kind: 'photo', preview })
+              const { mimeType, preview } = await compressImage(file)
+              const blob = await (await fetch(preview)).blob()
+              await add({ kind: 'photo', blob, mimeType }, preview)
             }
+          } catch (err) {
+            toast.err(err)
+          } finally {
+            setBusy('')
+          }
+        }}
+      />
+      <input
+        ref={videoRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={async (e) => {
+          const file = Array.from(e.target.files || []).find((f) => f.type.startsWith('video/'))
+          e.target.value = ''
+          if (!file) return
+          if (file.size > MAX_VIDEO_BYTES) {
+            toast.err(`That video is too large (max ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB).`)
+            return
+          }
+          setBusy('video')
+          try {
+            await add({ kind: 'video', blob: file, mimeType: file.type || 'video/mp4' })
           } catch (err) {
             toast.err(err)
           } finally {
@@ -577,57 +595,55 @@ function Recapture({
             </div>
           )}
 
-          <div className="col gap3">
-            <button
-              className="btn btn-ghost btn-full"
-              disabled={Boolean(busy) || recording}
-              onClick={() => fileRef.current?.click()}
-            >
-              {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={16} />}
-              Photo — pick one or several
-            </button>
-
-            <button
-              className={`btn btn-full ${recording ? 'btn-go' : 'btn-ghost'}`}
-              disabled={Boolean(busy) || !canRecord()}
-              onClick={async () => {
-                if (recording) {
-                  const rec = recRef.current
-                  recRef.current = null
-                  setRecording(false)
-                  if (!rec) return
-                  setBusy('audio')
-                  try {
-                    const wav = await rec.stop()
-                    await queue({ kind: 'notes', data: await blobToBase64(wav), mimeType: 'audio/wav' }, { kind: 'voice' })
-                  } catch (err) {
-                    toast.err(err)
-                  } finally {
-                    setBusy('')
+          <div className="col gap2">
+            <div className="row gap2">
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => fileRef.current?.click()}>
+                {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
+                Photo
+              </button>
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => videoRef.current?.click()}>
+                {busy === 'video' ? <span className="spin" /> : <Icon name="video" size={15} />}
+                Video
+              </button>
+            </div>
+            <div className="row gap2">
+              <button
+                className={`btn grow ${recording ? 'btn-go' : 'btn-ghost'}`}
+                disabled={Boolean(busy) || !canRecord()}
+                onClick={async () => {
+                  if (recording) {
+                    const rec = recRef.current
+                    recRef.current = null
+                    setRecording(false)
+                    if (!rec) return
+                    setBusy('audio')
+                    try {
+                      const wav = await rec.stop()
+                      await add({ kind: 'audio', blob: wav, mimeType: 'audio/wav' })
+                    } catch (err) {
+                      toast.err(err)
+                    } finally {
+                      setBusy('')
+                    }
+                  } else {
+                    try {
+                      recRef.current = await startRecording()
+                      setSecs(0)
+                      setRecording(true)
+                    } catch (err) {
+                      toast.err(err)
+                    }
                   }
-                } else {
-                  try {
-                    recRef.current = await startRecording()
-                    setSecs(0)
-                    setRecording(true)
-                  } catch (err) {
-                    toast.err(err)
-                  }
-                }
-              }}
-            >
-              {busy === 'audio' ? (
-                <span className="spin" />
-              ) : (
-                <Icon name={recording ? 'stop' : 'mic'} size={16} />
-              )}
-              {recording ? `Stop · ${clock(secs)}` : 'Voice note'}
-            </button>
-
-            <button className="btn btn-ghost btn-full" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
-              <Icon name="text" size={16} />
-              Type it
-            </button>
+                }}
+              >
+                {busy === 'audio' ? <span className="spin" /> : <Icon name={recording ? 'stop' : 'mic'} size={15} />}
+                {recording ? clock(secs) : 'Voice'}
+              </button>
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
+                <Icon name="text" size={15} />
+                Text
+              </button>
+            </div>
           </div>
 
           {items.length > 0 && (
@@ -640,6 +656,81 @@ function Recapture({
       )}
     </Sheet>
   )
+}
+
+/* ── the contact's standing context — every photo, video, voice note,
+   and typed note captured so far ────────────────────────────────── */
+
+function ContextSection({
+  contact,
+  eventId,
+  onAdd,
+}: {
+  contact: Contact
+  eventId: string
+  onAdd(): void
+}) {
+  const { user } = useAuth()
+  const toast = useToast()
+  const [open, setOpen] = useState<ContextItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const items = contact.context || []
+
+  if (!items.length) return null
+
+  async function remove(item: ContextItem) {
+    if (!user) return
+    setDeleting(true)
+    try {
+      await updateContact(user.uid, eventId, contact.id, {
+        context: items.filter((i) => i.id !== item.id),
+      })
+      if (item.storagePath) await deleteContextFile(item.storagePath)
+      setOpen(null)
+      toast.ok('Removed.')
+    } catch (err) {
+      toast.err(err)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="mt4">
+      <SectionLabel right={<button className="btn-bare t-sm faint" onClick={onAdd}><Icon name="plus" size={12} />Add</button>}>
+        Context · {items.length}
+      </SectionLabel>
+      <div className="row gap2 wrap">
+        {items.map((item) => (
+          <button key={item.id} className="card-tap" style={{ padding: 0, border: 0, background: 'none' }} onClick={() => setOpen(item)}>
+            <CaptureChip item={{ kind: item.kind, preview: item.kind === 'photo' ? item.url : undefined }} />
+          </button>
+        ))}
+      </div>
+
+      <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? contextTitle(open) : ''}>
+        {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 12 }} />}
+        {open?.kind === 'video' && open.url && (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <video src={open.url} controls style={{ width: '100%', borderRadius: 12 }} />
+        )}
+        {open?.kind === 'audio' && open.url && <audio src={open.url} controls style={{ width: '100%' }} />}
+        {open?.kind === 'text' && <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>{open.text}</p>}
+
+        <button className="btn btn-danger btn-full mt5" disabled={deleting} onClick={() => open && remove(open)}>
+          {deleting ? <span className="spin spin-dark" /> : <Icon name="trash" size={15} />}
+          Remove from context
+        </button>
+      </Sheet>
+    </div>
+  )
+}
+
+function contextTitle(item: ContextItem): string {
+  if (item.kind === 'photo') return 'Photo'
+  if (item.kind === 'video') return 'Video'
+  if (item.kind === 'audio') return 'Voice note'
+  return 'Typed note'
 }
 
 /* ── plain-text export of one record ─────────────────────── */

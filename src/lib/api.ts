@@ -1,11 +1,10 @@
 import { demoApi, isDemo } from './demo'
 import type {
   Contact,
+  ContextResult,
   EventRec,
   FollowupResult,
   HealthInfo,
-  NotesResult,
-  OcrResult,
   ParsedResume,
   SendResult,
   Tone,
@@ -72,25 +71,25 @@ export function parseResume(input: { data?: string; mimeType?: string; fileName?
   )
 }
 
-export function ocrCard(input: { image: string; mimeType: string }) {
-  return orSample(
-    () => post<OcrResult>('/api/ocr-card', input),
-    () => demoApi.ocrCard(),
-  )
+export interface ContextItemInput {
+  kind: 'photo' | 'video' | 'audio' | 'text'
+  mimeType?: string
+  /** base64 — omitted for a typed note. */
+  data?: string
+  /** typed-note content — omitted for everything else. */
+  text?: string
 }
 
-export function summarizeNotes(input: {
-  transcript?: string
-  audio?: string
-  mimeType?: string
+export function generateContext(input: {
+  items: ContextItemInput[]
   profile?: UserProfile | null
   contact?: Partial<Contact> | null
   event?: Partial<EventRec> | null
   tone?: Tone
 }) {
   return orSample(
-    () => post<NotesResult>('/api/summarize-notes', input),
-    () => demoApi.summarizeNotes(input),
+    () => post<ContextResult>('/api/generate-context', input),
+    () => demoApi.generateContext(input),
   )
 }
 

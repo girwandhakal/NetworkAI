@@ -48,6 +48,13 @@ export async function compressImage(file: Blob): Promise<{ base64: string; mimeT
   }
 }
 
+/* ── video ───────────────────────────────────────────────── */
+
+// Video is stored and re-sent whole (no client-side compression), so it is
+// capped well under what still fits comfortably in one Gemini request
+// alongside a few photos.
+export const MAX_VIDEO_BYTES = 25 * 1024 * 1024
+
 /* ── audio ───────────────────────────────────────────────── */
 
 const TARGET_RATE = 16000

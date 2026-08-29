@@ -40,7 +40,7 @@ Free key at **https://aistudio.google.com/apikey**.
 GEMINI_API_KEY=your-key
 ```
 
-All four AI endpoints use `gemini-3.6-flash`. Override with `GEMINI_MODEL` if you want a different one.
+All AI endpoints use `gemini-3.6-flash`. Override with `GEMINI_MODEL` if you want a different one.
 
 ### 2. Firebase project — required
 
@@ -50,7 +50,9 @@ Your data lives in **your own** Firebase project. At https://console.firebase.go
 2. **Build → Authentication → Sign-in method** → enable **Email/Password**. Enable **Google** too if you want the Google button to work.
 3. **Build → Firestore Database → Create database** (production mode is fine — the rules below lock it down).
 4. **Firestore → Rules** → paste the contents of [`firestore.rules`](firestore.rules) → **Publish**.
-5. **Project settings → Your apps → Web app** → copy the config values into `.env`:
+5. **Build → Storage → Get started** (production mode). This is where every photo, video, and voice note you capture is kept, so a contact's context survives closing the app and comes back on any device.
+6. **Storage → Rules** → paste the contents of [`storage.rules`](storage.rules) → **Publish**.
+7. **Project settings → Your apps → Web app** → copy the config values into `.env`:
 
 ```
 VITE_FIREBASE_API_KEY=
@@ -113,9 +115,11 @@ Event  ("Fall 2026 Tech Career Fair")
         └── LinkedIn list    copy a note, paste it in by hand
 ```
 
-**Capture is fire-and-forget.** Tapping stop writes the contact record immediately, then the extraction runs in the background — so nothing blocks you before the next booth. Firestore's local cache absorbs the write when you are offline, and an IndexedDB job queue holds the audio or image until the connection comes back. The queue depth shows in a bar at the top of the app.
+**Capture is fire-and-forget.** Tapping stop writes the contact record immediately, then the upload and extraction run in the background — so nothing blocks you before the next booth. Firestore's local cache absorbs the write when you are offline, and an IndexedDB job queue holds the regeneration until the connection comes back. The queue depth shows in a bar at the top of the app.
 
-**Nothing gates you behind a review step.** Extraction is never perfect, so instead: every field is inline-editable on the contact record, low-confidence extractions get a visible "worth a second look" flag with the model's own confidence number, and any capture can be re-run from the record.
+**A contact keeps every photo, video, voice note, and typed note you ever add to it as standing context** — not just the one that created it. Adding another one re-reads all of it together and rewrites the extracted fields, the notes, the email, and the LinkedIn note as one coherent pass, the way Claude or Gemini "projects" work. Several items added in one go (three photos at once, say) still cost one regeneration, not one per item.
+
+**Nothing gates you behind a review step.** Extraction is never perfect, so instead: every field is inline-editable on the contact record, low-confidence extractions get a visible "worth a second look" flag with the model's own confidence number, and context items can be added or removed from the record at any time.
 
 **Email vs. LinkedIn is asymmetric on purpose.** Email can be sent programmatically, so the email queue does batch sends. LinkedIn has no supported API for sending a connection request with a note, so that side is a worklist: copy, open the profile, paste, tick it off. It never pretends to send anything.
 
@@ -128,8 +132,7 @@ Event  ("Fall 2026 Tech Career Fair")
 | `GET /api/health` | Reports whether Gemini and email are configured |
 | `GET /resume.pdf` | Serves the PDF in `docs/` — the Resume tab is a viewer for it |
 | `POST /api/parse-resume` | PDF/Word/text resume → structured profile + transcript |
-| `POST /api/ocr-card` | Any image → classified document + contact fields + confidence |
-| `POST /api/summarize-notes` | Voice note or typed note → transcript, summary, email, LinkedIn note |
+| `POST /api/generate-context` | Every photo/video/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
 | `POST /api/generate-followup` | Rewrites the follow-ups in a different tone, or to a freeform instruction |
 | `POST /api/send-email` | Sends one or many, throttled, with per-recipient results |
 
@@ -147,4 +150,4 @@ Event  ("Fall 2026 Tech Career Fair")
 
 ## Privacy
 
-Single-user by design. Contact details and your resume go to Gemini to produce the summaries and drafts — that is the tradeoff the app is built on. Audio and images are never persisted: they live in the local job queue only until extraction succeeds, then they are deleted. Nothing is stored server-side; Firestore holds everything under `/users/{yourUid}`, and the rules deny every cross-user read.
+Single-user by design. Contact details and your resume go to Gemini to produce the summaries and drafts — that is the tradeoff the app is built on. Photos, videos, and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, with the same rules-enforced boundary as Firestore. Nothing is stored server-side; the server only ever forwards bytes to Gemini for that one request, it does not persist anything itself.

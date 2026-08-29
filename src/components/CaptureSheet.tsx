@@ -5,24 +5,26 @@ import { Sheet } from './Ui'
 import { useAuth } from '../state/Auth'
 import { useToast } from '../state/Toast'
 import { createContact, createEvent } from '../lib/db'
-import { enqueue } from '../lib/queue'
-import { blobToBase64, canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
+import { addContextItem, type AddContextInput } from '../lib/context'
+import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
 import { clock, todayISO } from '../lib/util'
-import { DEFAULT_TONE, type EventRec, type Tone } from '../lib/types'
+import { DEFAULT_TONE, type ContextItem, type EventRec, type Tone } from '../lib/types'
 
 type Mode = 'pick' | 'voice' | 'type' | 'session'
 
 const MAX_SECONDS = 120
 
-/** One capture folded into the session's contact — a photo previews itself;
- *  a voice or typed note has nothing to show but its kind. */
+/** One capture folded into the session's contact, for display only — the
+ *  persisted record lives in the contact's `context` array. A photo
+ *  previews itself; the rest just show their kind. */
 export interface CaptureItem {
-  kind: 'photo' | 'voice' | 'text'
+  kind: ContextItem['kind']
   preview?: string
 }
 
 /** The one contact this sheet session is building up — any mix of photos,
- *  voice notes, and typed notes can pile onto it before "Done". */
+ *  videos, voice notes, and typed notes can pile onto it before "Done",
+ *  each one triggering a fresh regeneration from the whole context. */
 interface Session {
   eventId: string
   contactId: string
@@ -66,9 +68,10 @@ export function CaptureSheet({
   const [secs, setSecs] = useState(0)
   const [bars, setBars] = useState<number[]>(Array(11).fill(0.08))
 
-  // photo — the input stays mounted for the whole sheet so both the initial
-  // "Image" tile and the session hub's "Add another" button can open it.
+  // photo / video — the inputs stay mounted for the whole sheet so both the
+  // initial tiles and the session hub's buttons can open them.
   const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
 
   // typed note
   const [text, setText] = useState('')
@@ -130,7 +133,6 @@ export function CaptureSheet({
       company: '',
       priority: 'Medium',
       status: 'Needs follow-up',
-      captureType: 'image',
       aiPending: true,
     })
 
@@ -157,6 +159,19 @@ export function CaptureSheet({
     sessionRef.current = next
     setSession(next)
     setMode('session')
+  }
+
+  /** Upload/append one item into the contact's standing context, queue a
+   *  regeneration pass, and reflect it in the session hub. Every add goes
+   *  through here — a photo, a video, a voice note, or a typed note. */
+  async function addContext(
+    s: Session,
+    input: AddContextInput,
+    preview?: string,
+  ): Promise<void> {
+    if (!user) throw new Error('Not signed in.')
+    await addContextItem(user.uid, s.eventId, s.contactId, input, tone, profile || null, eventContext(s))
+    addToSession(s, [{ kind: input.kind, preview }])
   }
 
   function afterSave(where: { eventId: string; contactId: string }) {
@@ -197,20 +212,7 @@ export function CaptureSheet({
       }
       if (!user) throw new Error('Not signed in.')
       const s = await ensureSession()
-      const base64 = await blobToBase64(wav)
-      await enqueue({
-        uid: user.uid,
-        eventId: s.eventId,
-        contactId: s.contactId,
-        kind: 'notes',
-        data: base64,
-        mimeType: 'audio/wav',
-        tone,
-        profile: profile || null,
-        event: eventContext(s),
-        contact: null,
-      })
-      addToSession(s, [{ kind: 'voice' }])
+      await addContext(s, { kind: 'audio', blob: wav, mimeType: 'audio/wav' })
     } catch (e) {
       toast.err(e)
     } finally {
@@ -240,24 +242,35 @@ export function CaptureSheet({
     try {
       if (!user) throw new Error('Not signed in.')
       const s = await ensureSession()
-      const items: CaptureItem[] = []
       for (const file of files) {
-        const { base64, mimeType, preview } = await compressImage(file)
-        await enqueue({
-          uid: user.uid,
-          eventId: s.eventId,
-          contactId: s.contactId,
-          kind: 'ocr',
-          data: base64,
-          mimeType,
-          tone,
-          profile: profile || null,
-          event: eventContext(s),
-          contact: null,
-        })
-        items.push({ kind: 'photo', preview })
+        const { mimeType, preview } = await compressImage(file)
+        const blob = await (await fetch(preview)).blob()
+        await addContext(sessionRef.current || s, { kind: 'photo', blob, mimeType }, preview)
       }
-      addToSession(sessionRef.current || s, items)
+    } catch (e) {
+      toast.err(e)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  /* ── video — a single file, no in-app recording ──────────── */
+
+  async function onVideo(list: FileList | null) {
+    const file = Array.from(list || []).find((f) => f.type.startsWith('video/'))
+    if (!file) {
+      if (list && list.length) toast.err('That is not a video file.')
+      return
+    }
+    if (file.size > MAX_VIDEO_BYTES) {
+      toast.err(`That video is too large (max ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB).`)
+      return
+    }
+    setBusy('video')
+    try {
+      if (!user) throw new Error('Not signed in.')
+      const s = await ensureSession()
+      await addContext(s, { kind: 'video', blob: file, mimeType: file.type || 'video/mp4' })
     } catch (e) {
       toast.err(e)
     } finally {
@@ -277,19 +290,8 @@ export function CaptureSheet({
       setBusy('save')
       if (!user) throw new Error('Not signed in.')
       const s = await ensureSession()
-      await enqueue({
-        uid: user.uid,
-        eventId: s.eventId,
-        contactId: s.contactId,
-        kind: 'notes',
-        transcript: t,
-        tone,
-        profile: profile || null,
-        event: eventContext(s),
-        contact: null,
-      })
+      await addContext(s, { kind: 'text', text: t })
       setText('')
-      addToSession(sessionRef.current || s, [{ kind: 'text' }])
     } catch (e) {
       toast.err(e)
     } finally {
@@ -335,8 +337,7 @@ export function CaptureSheet({
       }
     >
       {/* Mounted for the whole sheet so both the pick screen and the session
-          hub can open it. `multiple` lets the OS gallery picker multi-select;
-          leaving off `capture` keeps the camera option available too. */}
+          hub can open them. `multiple` lets the OS gallery picker multi-select. */}
       <input
         ref={fileRef}
         type="file"
@@ -348,12 +349,23 @@ export function CaptureSheet({
           e.target.value = ''
         }}
       />
+      <input
+        ref={videoRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={(e) => {
+          void onVideo(e.target.files)
+          e.target.value = ''
+        }}
+      />
 
       {mode === 'pick' && (
         <>
           <div className="col gap3">
             <CaptureOption icon="mic" title="Voice note" accent="mauve" disabled={!canRecord()} onClick={() => setMode('voice')} />
             <CaptureOption icon="camera" title="Image" accent="celadon" onClick={() => fileRef.current?.click()} />
+            <CaptureOption icon="video" title="Video" onClick={() => videoRef.current?.click()} />
             <CaptureOption icon="text" title="Type it" onClick={() => setMode('type')} />
           </div>
           {eventPicker}
@@ -434,30 +446,38 @@ export function CaptureSheet({
             {session.items.map((item, i) => (
               <CaptureChip key={i} item={item} />
             ))}
-            {busy && busy !== 'save' && (
+            {(busy === 'img' || busy === 'video') && (
               <span className="capture-chip capture-chip-pending">
                 <span className="spin" />
               </span>
             )}
           </div>
 
-          <div className="row gap2">
-            <button className="btn btn-ghost grow" onClick={() => fileRef.current?.click()} disabled={Boolean(busy)}>
-              {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
-              Photo
-            </button>
-            <button
-              className="btn btn-ghost grow"
-              onClick={() => setMode('voice')}
-              disabled={Boolean(busy) || !canRecord()}
-            >
-              <Icon name="mic" size={15} />
-              Voice
-            </button>
-            <button className="btn btn-ghost grow" onClick={() => setMode('type')} disabled={Boolean(busy)}>
-              <Icon name="text" size={15} />
-              Text
-            </button>
+          <div className="col gap2">
+            <div className="row gap2">
+              <button className="btn btn-ghost grow" onClick={() => fileRef.current?.click()} disabled={Boolean(busy)}>
+                {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
+                Photo
+              </button>
+              <button className="btn btn-ghost grow" onClick={() => videoRef.current?.click()} disabled={Boolean(busy)}>
+                {busy === 'video' ? <span className="spin" /> : <Icon name="video" size={15} />}
+                Video
+              </button>
+            </div>
+            <div className="row gap2">
+              <button
+                className="btn btn-ghost grow"
+                onClick={() => setMode('voice')}
+                disabled={Boolean(busy) || !canRecord()}
+              >
+                <Icon name="mic" size={15} />
+                Voice
+              </button>
+              <button className="btn btn-ghost grow" onClick={() => setMode('type')} disabled={Boolean(busy)}>
+                <Icon name="text" size={15} />
+                Text
+              </button>
+            </div>
           </div>
 
           <button className="btn btn-go btn-full" onClick={() => afterSave(session)} disabled={Boolean(busy)}>
@@ -470,15 +490,16 @@ export function CaptureSheet({
   )
 }
 
-/** One captured item in a session hub — a photo shows itself, a voice or
- *  typed note just shows its kind since there's nothing to preview. */
+/** One captured item in a session hub — a photo shows itself, everything
+ *  else just shows its kind since there's nothing to preview. */
 export function CaptureChip({ item }: { item: CaptureItem }) {
   if (item.kind === 'photo' && item.preview) {
     return <img src={item.preview} alt="" className="capture-chip" />
   }
+  const iconName = item.kind === 'audio' ? 'mic' : item.kind === 'video' ? 'video' : 'text'
   return (
     <span className={`capture-chip capture-chip-${item.kind}`}>
-      <Icon name={item.kind === 'voice' ? 'mic' : 'text'} size={18} />
+      <Icon name={iconName} size={18} />
     </span>
   )
 }
@@ -490,7 +511,7 @@ function CaptureOption({
   onClick,
   disabled,
 }: {
-  icon: 'mic' | 'camera' | 'text'
+  icon: 'mic' | 'camera' | 'text' | 'video'
   title: string
   accent?: 'mauve' | 'celadon'
   onClick(): void

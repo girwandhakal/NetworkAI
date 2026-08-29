@@ -1103,9 +1103,9 @@ ul {
   font-variant-numeric: tabular-nums;
 }
 
-/* One item captured into a session — a photo thumbnail, or a plain icon
-   chip standing in for a voice note / typed note (there's nothing to
-   preview). */
+/* One item of standing context on a contact — a photo thumbnail, or a
+   plain icon chip standing in for a video / voice note / typed note
+   (there's nothing worth previewing). */
 .capture-chip {
   width: 60px;
   height: 60px;
@@ -1117,10 +1117,15 @@ ul {
   object-fit: cover;
   border: 1px solid var(--line);
 }
-.capture-chip-voice {
+.capture-chip-audio {
   background: var(--mauve-dim);
   border-color: var(--mauve-line);
   color: var(--mauve-ink);
+}
+.capture-chip-video {
+  background: var(--celadon-dim);
+  border-color: var(--celadon-line);
+  color: var(--celadon-ink);
 }
 .capture-chip-text {
   background: var(--surface-3);

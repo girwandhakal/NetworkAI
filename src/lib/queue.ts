@@ -3,11 +3,13 @@
  *
  * Career fairs have terrible connectivity, and the <30s capture promise cannot
  * depend on a live Gemini round-trip. So capture always writes the contact
- * record first (Firestore's local cache absorbs that), and the AI extraction is
- * enqueued here. Jobs drain automatically when the connection returns.
+ * record — and its context item — first (Firestore's local cache absorbs
+ * that), and the AI regeneration is enqueued here. Jobs drain automatically
+ * when the connection returns.
  */
 
-import { ocrCard, summarizeNotes } from './api'
+import { generateContext, type ContextItemInput } from './api'
+import { fetchContextBase64 } from './storage'
 import { getContact, updateContact } from './db'
 import type { Contact, EventRec, Priority, Tone, UserProfile } from './types'
 
@@ -20,16 +22,10 @@ export interface Job {
   uid: string
   eventId: string
   contactId: string
-  kind: 'ocr' | 'notes'
-  /** base64 payload — image or WAV audio. Absent for a typed note. */
-  data?: string
-  mimeType?: string
-  /** Set instead of `data` when the user typed the note rather than recording it. */
-  transcript?: string
+  kind: 'context'
   tone: Tone
   profile: UserProfile | null
   event: Partial<EventRec> | null
-  contact: Partial<Contact> | null
   createdAt: number
   attempts: number
   lastError?: string
@@ -108,12 +104,37 @@ export function isNetworkError(e: unknown): boolean {
   return /reach the Network\.Ai server|Failed to fetch|NetworkError|network|offline|timed out|502|503|504|rate limit|quota/i.test(msg)
 }
 
+/**
+ * Every context job for the same contact regenerates from that contact's
+ * *current* context list — it carries no payload of its own. So if three
+ * are queued in a row (three photos picked at once, or a photo followed
+ * moments later by a voice note), only the newest is worth actually
+ * running; the rest would just repeat that same call. Drop the redundant
+ * ones before picking what to run next.
+ */
+async function coalesce(): Promise<void> {
+  const jobs = await listJobs().catch(() => [] as Job[])
+  const byContact = new Map<string, Job[]>()
+  for (const j of jobs) {
+    const key = `${j.uid}/${j.eventId}/${j.contactId}`
+    const list = byContact.get(key) || []
+    list.push(j)
+    byContact.set(key, list)
+  }
+  for (const list of byContact.values()) {
+    if (list.length < 2) continue
+    list.sort((a, b) => a.createdAt - b.createdAt)
+    for (const stale of list.slice(0, -1)) await dropJob(stale.id)
+  }
+}
+
 export async function drain(): Promise<void> {
   if (running || !navigator.onLine) return
   running = true
   await notify()
   try {
     for (;;) {
+      await coalesce()
       const jobs = (await listJobs().catch(() => [] as Job[])).sort((a, b) => a.createdAt - b.createdAt)
       const job = jobs.find((j) => j.attempts < MAX_ATTEMPTS)
       if (!job || !navigator.onLine) break
@@ -127,10 +148,11 @@ export async function drain(): Promise<void> {
 }
 
 /**
- * Whether another queued job still targets this same contact — a capture
- * session can leave two or three photos (or a photo plus a voice note)
- * queued against one record. "Writing it up" should stay lit until the last
- * of them finishes, not clear the moment the first one does.
+ * Whether another job for this same contact is already queued behind this
+ * one — the coalesce pass only runs at the top of the drain loop, so an
+ * item added while this job is mid-flight enqueues a fresh one that has not
+ * been coalesced away yet. "Writing it up" should stay lit until that one
+ * finishes too, not clear a beat early.
  */
 async function hasPendingSiblings(job: Job): Promise<boolean> {
   const jobs = await listJobs().catch(() => [] as Job[])
@@ -140,14 +162,14 @@ async function hasPendingSiblings(job: Job): Promise<boolean> {
 /** Returns false when the job failed for a reason worth pausing the drain over. */
 async function runJob(job: Job): Promise<boolean> {
   try {
-    const patch = job.kind === 'ocr' ? await runOcr(job) : await runNotes(job)
+    const patch = await runContext(job)
     await dropJob(job.id)
     const aiPending = await hasPendingSiblings(job)
     await updateContact(job.uid, job.eventId, job.contactId, { ...patch, aiPending, aiError: '' })
     await notify()
     return true
   } catch (e) {
-    const msg = (e as Error)?.message || 'Extraction failed.'
+    const msg = (e as Error)?.message || 'Regeneration failed.'
     const attempts = job.attempts + 1
     const retryable = isNetworkError(e) && attempts < MAX_ATTEMPTS
     await putJob({ ...job, attempts, lastError: msg })
@@ -165,45 +187,38 @@ async function runJob(job: Job): Promise<boolean> {
   }
 }
 
-/**
- * The record as it stands right now, not as it stood when this job was
- * enqueued. Several jobs can be queued against the same contact in a row
- * (multiple photos, a photo then a voice note) and drain one after another —
- * merging against a stale snapshot would let the second job's write erase
- * whatever the first one just filled in.
- */
-async function liveContact(job: Job): Promise<Partial<Contact>> {
-  const live = await getContact(job.uid, job.eventId, job.contactId).catch(() => null)
-  return live || job.contact || {}
-}
+async function runContext(job: Job): Promise<Partial<Contact>> {
+  const contact = await getContact(job.uid, job.eventId, job.contactId)
+  const contextList = contact?.context || []
+  if (!contextList.length) return {}
 
-async function runOcr(job: Job): Promise<Partial<Contact>> {
-  if (!job.data) throw new Error('The captured image is missing.')
-  const r = await ocrCard({ image: job.data, mimeType: job.mimeType || 'image/jpeg' })
-  return mergeOcr(r, await liveContact(job))
-}
+  const items: ContextItemInput[] = []
+  for (const item of contextList) {
+    if (item.kind === 'text') {
+      if (item.text?.trim()) items.push({ kind: 'text', text: item.text })
+    } else if (item.storagePath) {
+      const data = await fetchContextBase64(item.storagePath)
+      items.push({ kind: item.kind, mimeType: item.mimeType, data })
+    }
+  }
+  if (!items.length) return {}
 
-async function runNotes(job: Job): Promise<Partial<Contact>> {
-  const r = await summarizeNotes({
-    audio: job.data,
-    mimeType: job.mimeType,
-    transcript: job.transcript,
+  const r = await generateContext({
+    items,
     profile: job.profile,
-    // Prompt context only needs to be roughly current, so the enqueue-time
-    // snapshot is fine here — it is the merge below that must not be stale.
-    contact: job.contact,
+    contact,
     event: job.event,
     tone: job.tone,
   })
-  return mergeNotes(r, await liveContact(job), job.tone)
+  return mergeContext(r, contact || {})
 }
 
-/* ── result merging (shared with the online path) ────────── */
+/* ── result merging ──────────────────────────────────────── */
 
 const keep = (existing: string | undefined, incoming: string | undefined) =>
   existing && existing.trim() ? existing : incoming || ''
 
-export function mergeOcr(
+export function mergeContext(
   r: {
     docType: string
     name: string
@@ -214,6 +229,10 @@ export function mergeOcr(
     website: string
     linkedin: string
     notes: string
+    summary: Contact['summary']
+    emailSubject: string
+    emailDraft: string
+    linkedinNote: string
     priority: Priority
     confidence: number
     unclear: string[]
@@ -229,51 +248,18 @@ export function mergeOcr(
     phone: keep(existing.phone, r.phone),
     website: keep(existing.website, r.website),
     linkedin: keep(existing.linkedin, r.linkedin),
-    notes: [existing.notes, r.notes].filter((s) => s && s.trim()).join('\n\n'),
-    priority: existing.priority || r.priority,
-    // First image sets the document type; later ones (a flyer after the
-    // business card, say) do not overwrite it.
-    docType: existing.docType || r.docType,
-    // The more cautious reading wins across multiple images, so the
-    // "worth a check" flag stays up if any single capture was unclear —
-    // one crisp follow-up photo should not silently erase that flag.
-    confidence: Math.min(existing.confidence ?? 1, r.confidence),
-    unclear: Array.from(new Set([...(existing.unclear || []), ...r.unclear])),
-    captureType: 'image',
-  }
-}
-
-export function mergeNotes(
-  r: {
-    transcript: string
-    name: string
-    company: string
-    title: string
-    summary: Contact['summary']
-    emailSubject: string
-    emailDraft: string
-    linkedinNote: string
-    priority: Priority
-    confidence: number
-  },
-  existing: Partial<Contact>,
-  tone: Tone,
-): Partial<Contact> {
-  return {
-    name: keep(existing.name, r.name),
-    company: keep(existing.company, r.company),
-    title: keep(existing.title, r.title),
+    // Everything below reflects the *whole* context as of this pass, so it
+    // is rewritten in full each time rather than merged — that is the point
+    // of reading all the context together instead of one item at a time.
+    notes: r.notes,
     summary: r.summary,
-    transcript: r.transcript,
     emailSubject: r.emailSubject,
     emailDraft: r.emailDraft,
-    emailTone: tone,
     linkedinNote: r.linkedinNote,
-    priority: existing.priority || r.priority,
+    priority: r.priority,
+    docType: r.docType,
     confidence: r.confidence,
-    captureType: 'voice',
-    // Only advance an untouched record. Re-capturing someone already marked
-    // "Replied" must not drag them back into the queue.
+    unclear: r.unclear,
     status:
       !existing.status || existing.status === 'Needs follow-up'
         ? r.emailDraft
