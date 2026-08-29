@@ -857,7 +857,6 @@ ul {
   max-width: calc(var(--shell) - var(--s5) * 2);
   height: var(--nav-h);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   align-items: center;
   background: var(--glass);
   backdrop-filter: blur(22px) saturate(180%);
@@ -865,6 +864,11 @@ ul {
   border: 1px solid var(--line);
   border-radius: 999px;
   box-shadow: var(--shadow-lg);
+}
+/* Outside an event: the four top-level tabs, no capture button — capture
+   only makes sense once you are inside a specific event. */
+.nav-tabs {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 /* Inside an event: just the capture button, sized to fit rather than

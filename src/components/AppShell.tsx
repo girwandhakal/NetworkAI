@@ -69,11 +69,10 @@ export function AppShell() {
 
       <Outlet />
 
-      {/* Inside an event, the only thing worth reaching from the bar is
-          capture — the four top-level tabs would just navigate away from
-          the event with no way back to this exact spot. */}
+      {/* Capture only belongs to a specific event, so it only appears once
+          you are inside one — the top-level bar is just the four tabs. */}
       <nav className="navwrap">
-        <div className={`nav${eventId ? ' nav-solo' : ''}`}>
+        <div className={`nav${eventId ? ' nav-solo' : ' nav-tabs'}`}>
           {eventId ? (
             <button className="capbtn" onClick={() => setCapture(true)} aria-label="Capture a contact">
               <span>
@@ -81,17 +80,7 @@ export function AppShell() {
               </span>
             </button>
           ) : (
-            <>
-              <Tab {...TABS[0]} />
-              <Tab {...TABS[1]} />
-              <button className="capbtn" onClick={() => setCapture(true)} aria-label="Capture a contact">
-                <span>
-                  <Icon name="plus" size={24} strokeWidth={2.2} />
-                </span>
-              </button>
-              <Tab {...TABS[2]} />
-              <Tab {...TABS[3]} />
-            </>
+            TABS.map((t) => <Tab key={t.to} {...t} />)
           )}
         </div>
       </nav>
