@@ -1103,6 +1103,34 @@ ul {
   font-variant-numeric: tabular-nums;
 }
 
+/* One item captured into a session — a photo thumbnail, or a plain icon
+   chip standing in for a voice note / typed note (there's nothing to
+   preview). */
+.capture-chip {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+.capture-chip-voice {
+  background: var(--mauve-dim);
+  border-color: var(--mauve-line);
+  color: var(--mauve-ink);
+}
+.capture-chip-text {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.capture-chip-pending {
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+
 /* ============================================================
    MISC
    ============================================================ */

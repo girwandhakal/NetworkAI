@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { CaptureChip, type CaptureItem } from '../components/CaptureSheet'
 import { Confirm, CopyButton, SectionLabel, Sheet, SkeletonList } from '../components/Ui'
 import { InlineField } from '../components/InlineField'
 import { useAuth } from '../state/Auth'
@@ -10,7 +11,7 @@ import { deleteContact, updateContact, watchContact } from '../lib/db'
 import { generateFollowup, sendEmails } from '../lib/api'
 import { enqueue } from '../lib/queue'
 import { blobToBase64, canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
-import { clock, isEmail, linkedinSearchUrl, pluralize, STATUS_STYLE, timeAgo } from '../lib/util'
+import { clock, isEmail, linkedinSearchUrl, STATUS_STYLE, timeAgo } from '../lib/util'
 import {
   DEFAULT_TONE,
   displayName,
@@ -451,10 +452,12 @@ function Recapture({
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<Recorder | null>(null)
+  const [mode, setMode] = useState<'hub' | 'text'>('hub')
   const [recording, setRecording] = useState(false)
   const [secs, setSecs] = useState(0)
   const [busy, setBusy] = useState('')
-  const [added, setAdded] = useState(0)
+  const [items, setItems] = useState<CaptureItem[]>([])
+  const [text, setText] = useState('')
 
   const event = events.find((e) => e.id === eventId)
 
@@ -474,19 +477,20 @@ function Recapture({
   }, [open])
 
   useEffect(() => {
-    if (open) setAdded(0)
+    if (open) {
+      setMode('hub')
+      setItems([])
+      setText('')
+    }
   }, [open])
 
-  async function queue(kind: 'ocr' | 'notes', data: string, mimeType: string) {
+  async function queue(job: { kind: 'ocr' | 'notes'; data?: string; mimeType?: string; transcript?: string }, item: CaptureItem) {
     if (!user) return
     await updateContact(user.uid, eventId, contact.id, { aiPending: true, aiError: '' })
     await enqueue({
       uid: user.uid,
       eventId,
       contactId: contact.id,
-      kind,
-      data,
-      mimeType,
       tone: contact.emailTone || profile?.defaultTone || DEFAULT_TONE,
       profile: profile || null,
       event: event ? { name: event.name, date: event.date, location: event.location } : null,
@@ -494,8 +498,27 @@ function Recapture({
       // drains, so a stale copy here would only ever affect AI prompt
       // context, never overwrite anything.
       contact,
+      ...job,
     })
-    setAdded((n) => n + 1)
+    setItems((prev) => [...prev, item])
+  }
+
+  async function saveText() {
+    const t = text.trim()
+    if (t.length < 10) {
+      toast.err('A bit more, please.')
+      return
+    }
+    setBusy('save')
+    try {
+      await queue({ kind: 'notes', transcript: t }, { kind: 'text' })
+      setText('')
+      setMode('hub')
+    } catch (err) {
+      toast.err(err)
+    } finally {
+      setBusy('')
+    }
   }
 
   return (
@@ -513,8 +536,8 @@ function Recapture({
           setBusy('img')
           try {
             for (const file of files) {
-              const { base64, mimeType } = await compressImage(file)
-              await queue('ocr', base64, mimeType)
+              const { base64, mimeType, preview } = await compressImage(file)
+              await queue({ kind: 'ocr', data: base64, mimeType }, { kind: 'photo', preview })
             }
           } catch (err) {
             toast.err(err)
@@ -524,61 +547,95 @@ function Recapture({
         }}
       />
 
-      <div className="col gap3">
-        <button
-          className="btn btn-ghost btn-full"
-          disabled={Boolean(busy) || recording}
-          onClick={() => fileRef.current?.click()}
-        >
-          {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={16} />}
-          Photo — pick one or several
-        </button>
-
-        <button
-          className={`btn btn-full ${recording ? 'btn-go' : 'btn-ghost'}`}
-          disabled={Boolean(busy) || !canRecord()}
-          onClick={async () => {
-            if (recording) {
-              const rec = recRef.current
-              recRef.current = null
-              setRecording(false)
-              if (!rec) return
-              setBusy('audio')
-              try {
-                const wav = await rec.stop()
-                await queue('notes', await blobToBase64(wav), 'audio/wav')
-              } catch (err) {
-                toast.err(err)
-              } finally {
-                setBusy('')
-              }
-            } else {
-              try {
-                recRef.current = await startRecording()
-                setSecs(0)
-                setRecording(true)
-              } catch (err) {
-                toast.err(err)
-              }
-            }
-          }}
-        >
-          {busy === 'audio' ? (
-            <span className="spin" />
-          ) : (
-            <Icon name={recording ? 'stop' : 'mic'} size={16} />
-          )}
-          {recording ? `Stop · ${clock(secs)}` : 'Voice note'}
-        </button>
-      </div>
-
-      {added > 0 && (
+      {mode === 'text' ? (
         <>
-          <p className="t-sm faint center mt4">{pluralize(added, 'capture')} added this round.</p>
-          <button className="btn btn-primary btn-full mt3" onClick={onClose}>
-            <Icon name="check" size={15} />
-            Done
-          </button>
+          <textarea
+            className="textarea"
+            style={{ minHeight: 150 }}
+            autoFocus
+            placeholder="Talked more about the Kafka migration — she's the one to email first."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="row gap3 mt5">
+            <button className="btn btn-ghost grow" onClick={() => setMode('hub')} disabled={Boolean(busy)}>
+              Back
+            </button>
+            <button className="btn btn-primary grow" onClick={saveText} disabled={Boolean(busy) || text.trim().length < 10}>
+              {busy === 'save' ? <span className="spin spin-dark" /> : <Icon name="spark" size={15} />}
+              Save
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          {items.length > 0 && (
+            <div className="row gap2 wrap" style={{ marginBottom: 'var(--s4)' }}>
+              {items.map((item, i) => (
+                <CaptureChip key={i} item={item} />
+              ))}
+            </div>
+          )}
+
+          <div className="col gap3">
+            <button
+              className="btn btn-ghost btn-full"
+              disabled={Boolean(busy) || recording}
+              onClick={() => fileRef.current?.click()}
+            >
+              {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={16} />}
+              Photo — pick one or several
+            </button>
+
+            <button
+              className={`btn btn-full ${recording ? 'btn-go' : 'btn-ghost'}`}
+              disabled={Boolean(busy) || !canRecord()}
+              onClick={async () => {
+                if (recording) {
+                  const rec = recRef.current
+                  recRef.current = null
+                  setRecording(false)
+                  if (!rec) return
+                  setBusy('audio')
+                  try {
+                    const wav = await rec.stop()
+                    await queue({ kind: 'notes', data: await blobToBase64(wav), mimeType: 'audio/wav' }, { kind: 'voice' })
+                  } catch (err) {
+                    toast.err(err)
+                  } finally {
+                    setBusy('')
+                  }
+                } else {
+                  try {
+                    recRef.current = await startRecording()
+                    setSecs(0)
+                    setRecording(true)
+                  } catch (err) {
+                    toast.err(err)
+                  }
+                }
+              }}
+            >
+              {busy === 'audio' ? (
+                <span className="spin" />
+              ) : (
+                <Icon name={recording ? 'stop' : 'mic'} size={16} />
+              )}
+              {recording ? `Stop · ${clock(secs)}` : 'Voice note'}
+            </button>
+
+            <button className="btn btn-ghost btn-full" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
+              <Icon name="text" size={16} />
+              Type it
+            </button>
+          </div>
+
+          {items.length > 0 && (
+            <button className="btn btn-primary btn-full mt4" onClick={onClose}>
+              <Icon name="check" size={15} />
+              Done
+            </button>
+          )}
         </>
       )}
     </Sheet>
