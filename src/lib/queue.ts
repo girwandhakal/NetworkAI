@@ -2,7 +2,7 @@
  * Offline capture queue.
  *
  * Career fairs have terrible connectivity, and the <30s capture promise cannot
- * depend on a live Gemini round-trip. So capture always writes the contact
+ * depend on a live OpenAI round-trip. So capture always writes the contact
  * record — and its context item — first (Firestore's local cache absorbs
  * that), and the AI regeneration is enqueued here. Jobs drain automatically
  * when the connection returns.

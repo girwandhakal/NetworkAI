@@ -1,4 +1,4 @@
-import { S } from './gemini.js'
+import { S } from './schema.js'
 
 export const TONES = {
   Formal: 'Polished and businesslike. Full sentences, no contractions, no slang, no exclamation marks.',

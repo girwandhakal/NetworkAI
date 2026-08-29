@@ -163,7 +163,7 @@ export interface SendResult {
 
 export interface HealthInfo {
   ok: boolean
-  gemini: { configured: boolean; model: string }
+  ai: { configured: boolean; model: string }
   mail: { mode: 'resend' | 'smtp' | 'none'; from: string; ready: boolean; throttleMs: number }
   tones: string[]
 }

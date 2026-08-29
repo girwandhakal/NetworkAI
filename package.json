@@ -14,7 +14,6 @@
     "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false"
   },
   "dependencies": {
-    "@google/genai": "^1.52.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

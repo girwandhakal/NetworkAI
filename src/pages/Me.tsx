@@ -60,10 +60,10 @@ export function Me() {
             good={online}
           />
           <Row
-            label="Gemini"
-            value={info === undefined ? 'Checking' : info?.gemini.configured ? info.gemini.model : 'Not configured'}
-            good={Boolean(info?.gemini.configured)}
-            help={info && !info.gemini.configured ? 'Add GEMINI_API_KEY to .env.' : undefined}
+            label="OpenAI"
+            value={info === undefined ? 'Checking' : info?.ai.configured ? info.ai.model : 'Not configured'}
+            good={Boolean(info?.ai.configured)}
+            help={info && !info.ai.configured ? 'Add OPENAI_API_KEY to .env.' : undefined}
           />
           <Row
             label="Email sending"

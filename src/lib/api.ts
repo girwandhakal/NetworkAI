@@ -15,7 +15,7 @@ const DEMO = isDemo()
 
 /**
  * In demo mode the real endpoint still gets first refusal, so a configured
- * Gemini key produces genuine output. Canned sample results only stand in when
+ * OpenAI key produces genuine output. Canned sample results only stand in when
  * the server has no key (or is not running), which is what makes the demo
  * viewable with no credentials at all.
  */
@@ -58,7 +58,7 @@ export async function health(): Promise<HealthInfo | null> {
   // against demoApi.sendEmails, which delivers nothing.
   return {
     ok: true,
-    gemini: live?.gemini || { configured: false, model: 'sample responses' },
+    ai: live?.ai || { configured: false, model: 'sample responses' },
     mail: { mode: 'resend', from: 'demo — nothing is delivered', ready: true, throttleMs: 0 },
     tones: live?.tones || [],
   }

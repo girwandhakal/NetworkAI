@@ -6,7 +6,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { generate, isConfigured, modelName } from './gemini.js'
+import { generate, isConfigured, modelName } from './openai.js'
 import {
   TONE_KEYS,
   resumeSchema,
@@ -82,7 +82,7 @@ function bad(message) {
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: isConfigured(),
-    gemini: { configured: isConfigured(), model: modelName() },
+    ai: { configured: isConfigured(), model: modelName() },
     mail: mailStatus(),
     tones: TONE_KEYS,
   })
@@ -279,7 +279,7 @@ const port = Number(process.env.PORT) || 8787
 app.listen(port, () => {
   const mail = mailStatus()
   console.log(`\n  Network.Ai server  ->  http://localhost:${port}`)
-  console.log(`  Gemini  ${isConfigured() ? `ready (${modelName()})` : 'NOT CONFIGURED — set GEMINI_API_KEY in .env'}`)
+  console.log(`  OpenAI  ${isConfigured() ? `ready (${modelName()})` : 'NOT CONFIGURED — set OPENAI_API_KEY in .env'}`)
   console.log(`  Email   ${mail.ready ? `ready via ${mail.mode} (${mail.from})` : 'not configured — drafts still generate, sending is disabled'}`)
   if (!fs.existsSync(dist)) console.log(`  Web     run "npm run dev" for the app on http://localhost:5173\n`)
   else console.log('')

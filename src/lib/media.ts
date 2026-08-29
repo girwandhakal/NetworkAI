@@ -56,9 +56,9 @@ export async function compressImage(file: Blob): Promise<{ blob: Blob; mimeType:
 
 /* ── video ───────────────────────────────────────────────── */
 
-// Video is stored and re-sent whole (no client-side compression), so it is
-// capped well under what still fits comfortably in one Gemini request
-// alongside a few photos.
+// Video is stored whole (no client-side compression) and kept for the
+// record even though the model can't see it directly (see server/openai.js),
+// so it is capped to a size that stays Storage-friendly.
 export const MAX_VIDEO_BYTES = 25 * 1024 * 1024
 
 /* ── audio ───────────────────────────────────────────────── */
@@ -66,9 +66,9 @@ export const MAX_VIDEO_BYTES = 25 * 1024 * 1024
 const TARGET_RATE = 16000
 
 /**
- * MediaRecorder gives us webm/opus, which Gemini's audio support does not
- * document. Decoding to 16kHz mono PCM WAV is a format it definitely accepts,
- * and at 32KB/s a 30-second note is still a small upload.
+ * MediaRecorder gives us webm/opus. Decoding to 16kHz mono PCM WAV is a
+ * format the transcription API definitely accepts, and at 32KB/s a
+ * 30-second note is still a small upload.
  */
 export async function toWav(blob: Blob): Promise<Blob> {
   const AC: typeof AudioContext =

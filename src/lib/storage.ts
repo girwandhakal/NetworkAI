@@ -42,7 +42,7 @@ export async function uploadContextFile(
   return { storagePath, url }
 }
 
-/** Base64, ready to drop straight into a Gemini inlineData part. */
+/** Base64, ready to drop straight into a context item sent to the server. */
 export async function fetchContextBase64(storagePath: string): Promise<string> {
   const cached = memory.get(storagePath)
   if (cached !== undefined) return cached

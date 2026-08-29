@@ -12,7 +12,7 @@ VITE_FIREBASE_PROJECT_ID=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
-GEMINI_API_KEY=`
+OPENAI_API_KEY=`
 
 /** Shown instead of the app when .env has not been filled in yet. */
 export function Setup() {
@@ -29,7 +29,7 @@ export function Setup() {
           <br />
           <span className="mauve italic">you are running.</span>
         </h1>
-        <p className="t-body muted mt3">Your own Firebase project, your own Gemini key.</p>
+        <p className="t-body muted mt3">Your own Firebase project, your own OpenAI key.</p>
       </header>
 
       <Step n={1} title="Create a Firebase project" done={missingFirebaseKeys.length === 0}>
@@ -46,13 +46,13 @@ export function Setup() {
         </ul>
       </Step>
 
-      <Step n={2} title="Get a Gemini API key" done={Boolean(info?.gemini.configured)}>
+      <Step n={2} title="Get an OpenAI API key" done={Boolean(info?.ai.configured)}>
         <p className="t-sm muted">
-          Free at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>.
+          Create one at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>. Needs billing set up on the account — there is no free tier.
         </p>
       </Step>
 
-      <Step n={3} title="Fill in .env" done={missingFirebaseKeys.length === 0 && Boolean(info?.gemini.configured)}>
+      <Step n={3} title="Fill in .env" done={missingFirebaseKeys.length === 0 && Boolean(info?.ai.configured)}>
         <p className="t-sm muted">
           Copy <span className="mauve">.env.example</span> to <span className="mauve">.env</span> and fill in:
         </p>
@@ -81,9 +81,9 @@ export function Setup() {
             detail={info === undefined ? 'Checking' : info ? 'Reachable' : 'Not running'}
           />
           <Check
-            ok={info === undefined ? null : Boolean(info?.gemini.configured)}
-            label="Gemini key"
-            detail={info?.gemini.configured ? info.gemini.model : 'Not set'}
+            ok={info === undefined ? null : Boolean(info?.ai.configured)}
+            label="OpenAI key"
+            detail={info?.ai.configured ? info.ai.model : 'Not set'}
           />
         </div>
         <button className="btn btn-primary btn-full mt5" onClick={() => window.location.reload()}>

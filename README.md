@@ -25,22 +25,24 @@ Run `npm run dev` with no keys at all and click **Try it with sample data** on t
 Demo mode swaps Firebase for an in-memory store seeded with two events and eight contacts covering every state the app can be in — drafted, sent, replied, a low-confidence pamphlet scan that needs checking, LinkedIn notes both added and pending. Every screen and interaction works: editing, tone switching, batch selection, search, filters.
 
 - Data lives in `localStorage` only. **Reset** re-seeds it, **Exit** clears it — both in the bar at the top.
-- If `GEMINI_API_KEY` is set, recording and drafting hit the **real** model. If not, they return sample results.
+- If `OPENAI_API_KEY` is set, recording and drafting hit the **real** model. If not, they return sample results.
 - Email is **never actually sent** in demo mode, even if sending is configured.
 
 ---
 
 ## What you need to supply
 
-### 1. Gemini API key — required
+### 1. OpenAI API key — required
 
-Free key at **https://aistudio.google.com/apikey**.
+Create one at **https://platform.openai.com/api-keys**. There is no free tier — billing has to be set up on the account.
 
 ```
-GEMINI_API_KEY=your-key
+OPENAI_API_KEY=your-key
 ```
 
-All AI endpoints use `gemini-3.6-flash`. Override with `GEMINI_MODEL` if you want a different one.
+Text and image capture use `gpt-4o` by default; voice notes are transcribed with `whisper-1` first, then folded in as text. Override either with `OPENAI_MODEL` / `OPENAI_TRANSCRIBE_MODEL`.
+
+**Video is captured and kept, but not "seen."** No OpenAI chat/vision model accepts raw video today, so a captured video is stored (and viewable from the Context section) but is swapped for a short text placeholder when building the AI request — it doesn't contribute to the extracted fields, notes, or draft the way a photo or voice note does.
 
 ### 2. Firebase project — required
 
@@ -129,7 +131,7 @@ Event  ("Fall 2026 Tech Career Fair")
 
 | Endpoint | What it does |
 | --- | --- |
-| `GET /api/health` | Reports whether Gemini and email are configured |
+| `GET /api/health` | Reports whether OpenAI and email are configured |
 | `GET /resume.pdf` | Serves the PDF in `docs/` — the Resume tab is a viewer for it |
 | `POST /api/parse-resume` | PDF/Word/text resume → structured profile + transcript |
 | `POST /api/generate-context` | Every photo/video/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
@@ -150,4 +152,4 @@ Event  ("Fall 2026 Tech Career Fair")
 
 ## Privacy
 
-Single-user by design. Contact details and your resume go to Gemini to produce the summaries and drafts — that is the tradeoff the app is built on. Photos, videos, and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, gated by `storage.rules` the same way Firestore is. One caveat that rules can't close: each file's download URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — normal Firebase Storage behavior, not a bug specific to this app, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to Gemini for that one request, it does not persist anything itself.
+Single-user by design. Contact details and your resume go to OpenAI to produce the summaries and drafts — that is the tradeoff the app is built on. Voice notes are additionally sent to OpenAI's transcription endpoint before that. Photos, videos, and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, gated by `storage.rules` the same way Firestore is. One caveat that rules can't close: each file's download URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — normal Firebase Storage behavior, not a bug specific to this app, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to OpenAI for that one request, it does not persist anything itself.

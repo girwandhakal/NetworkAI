@@ -3,7 +3,7 @@
  *
  * Firebase is the only hard dependency for *storage*, so this swaps it for an
  * in-memory store with the same surface as db.ts, seeded with a fair's worth of
- * realistic contacts. Gemini is untouched: if the server has a key, capture and
+ * realistic contacts. OpenAI is untouched: if the server has a key, capture and
  * regeneration hit the real API, and only fall back to canned output when it
  * does not. Nothing here ever talks to a network for storage.
  */
@@ -263,7 +263,7 @@ export const demoDb = {
   },
 }
 
-/* ── canned AI, used only when the server has no Gemini key ─ */
+/* ── canned AI, used only when the server has no OpenAI key ─ */
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
