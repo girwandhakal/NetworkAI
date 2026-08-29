@@ -69,17 +69,19 @@ export function AppShell() {
 
       <Outlet />
 
+      {/* Capture only belongs to a specific event, so it only appears once
+          you are inside one — the top-level bar is just the four tabs. */}
       <nav className="navwrap">
-        <div className="nav">
-          <Tab {...TABS[0]} />
-          <Tab {...TABS[1]} />
-          <button className="capbtn" onClick={() => setCapture(true)} aria-label="Capture a contact">
-            <span>
-              <Icon name="plus" size={24} strokeWidth={2.2} />
-            </span>
-          </button>
-          <Tab {...TABS[2]} />
-          <Tab {...TABS[3]} />
+        <div className={`nav${eventId ? ' nav-solo' : ' nav-tabs'}`}>
+          {eventId ? (
+            <button className="capbtn" onClick={() => setCapture(true)} aria-label="Capture a contact">
+              <span>
+                <Icon name="plus" size={24} strokeWidth={2.2} />
+              </span>
+            </button>
+          ) : (
+            TABS.map((t) => <Tab key={t.to} {...t} />)
+          )}
         </div>
       </nav>
 

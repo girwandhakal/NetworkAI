@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { CaptureChip, type CaptureItem } from '../components/CaptureSheet'
 import { Confirm, CopyButton, SectionLabel, Sheet, SkeletonList } from '../components/Ui'
 import { InlineField } from '../components/InlineField'
 import { useAuth } from '../state/Auth'
@@ -8,16 +9,20 @@ import { useData } from '../state/Data'
 import { useToast } from '../state/Toast'
 import { deleteContact, updateContact, watchContact } from '../lib/db'
 import { generateFollowup, sendEmails } from '../lib/api'
+import { addContextItem, type AddContextInput } from '../lib/context'
 import { enqueue } from '../lib/queue'
-import { blobToBase64, canRecord, compressImage, startRecording, type Recorder } from '../lib/media'
-import { clock, isEmail, linkedinSearchUrl, pluralize, STATUS_STYLE, timeAgo } from '../lib/util'
+import { deleteContextFile } from '../lib/storage'
+import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
+import { clock, isEmail, linkedinSearchUrl, STATUS_STYLE, timeAgo } from '../lib/util'
 import {
+  CONTEXT_KIND,
   DEFAULT_TONE,
   displayName,
   needsCheck,
   TONE_BLURB,
   TONES,
   type Contact,
+  type ContextItem,
   type Tone,
 } from '../lib/types'
 
@@ -229,6 +234,8 @@ export function ContactDetail() {
           onSave={(v) => patch({ notes: v })}
         />
       </div>
+
+      <ContextSection contact={c} eventId={eventId} onAdd={() => setRedo(true)} />
 
       {/* ── email draft ── */}
       <div className="mt5">
@@ -450,13 +457,18 @@ function Recapture({
   const { events } = useData()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLInputElement>(null)
   const recRef = useRef<Recorder | null>(null)
+  const [mode, setMode] = useState<'hub' | 'text'>('hub')
   const [recording, setRecording] = useState(false)
   const [secs, setSecs] = useState(0)
   const [busy, setBusy] = useState('')
-  const [added, setAdded] = useState(0)
+  const [items, setItems] = useState<CaptureItem[]>([])
+  const [text, setText] = useState('')
 
   const event = events.find((e) => e.id === eventId)
+  const tone = contact.emailTone || profile?.defaultTone || DEFAULT_TONE
+  const evContext = event ? { name: event.name, date: event.date, location: event.location } : null
 
   useEffect(() => {
     if (!recording) return
@@ -474,32 +486,39 @@ function Recapture({
   }, [open])
 
   useEffect(() => {
-    if (open) setAdded(0)
+    if (open) {
+      setMode('hub')
+      setItems([])
+      setText('')
+    }
   }, [open])
 
-  async function queue(kind: 'ocr' | 'notes', data: string, mimeType: string) {
+  async function add(input: AddContextInput, preview?: string) {
     if (!user) return
-    await updateContact(user.uid, eventId, contact.id, { aiPending: true, aiError: '' })
-    await enqueue({
-      uid: user.uid,
-      eventId,
-      contactId: contact.id,
-      kind,
-      data,
-      mimeType,
-      tone: contact.emailTone || profile?.defaultTone || DEFAULT_TONE,
-      profile: profile || null,
-      event: event ? { name: event.name, date: event.date, location: event.location } : null,
-      // The queue merges against the live record when the job actually
-      // drains, so a stale copy here would only ever affect AI prompt
-      // context, never overwrite anything.
-      contact,
-    })
-    setAdded((n) => n + 1)
+    await addContextItem(user.uid, eventId, contact.id, input, tone, profile || null, evContext)
+    setItems((prev) => [...prev, { kind: input.kind, preview }])
+  }
+
+  async function saveText() {
+    const t = text.trim()
+    if (t.length < 10) {
+      toast.err('A bit more, please.')
+      return
+    }
+    setBusy('save')
+    try {
+      await add({ kind: 'text', text: t })
+      setText('')
+      setMode('hub')
+    } catch (err) {
+      toast.err(err)
+    } finally {
+      setBusy('')
+    }
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Capture again">
+    <Sheet open={open} onClose={onClose} title="Add to this contact">
       <input
         ref={fileRef}
         type="file"
@@ -513,8 +532,8 @@ function Recapture({
           setBusy('img')
           try {
             for (const file of files) {
-              const { base64, mimeType } = await compressImage(file)
-              await queue('ocr', base64, mimeType)
+              const { blob, mimeType, preview } = await compressImage(file)
+              await add({ kind: 'photo', blob, mimeType }, preview)
             }
           } catch (err) {
             toast.err(err)
@@ -523,67 +542,207 @@ function Recapture({
           }
         }}
       />
+      <input
+        ref={videoRef}
+        type="file"
+        accept="video/*"
+        hidden
+        onChange={async (e) => {
+          const file = Array.from(e.target.files || []).find((f) => !f.type || f.type.startsWith('video/'))
+          e.target.value = ''
+          if (!file) return
+          if (file.size > MAX_VIDEO_BYTES) {
+            toast.err(`That video is too large (max ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)}MB).`)
+            return
+          }
+          setBusy('video')
+          try {
+            await add({ kind: 'video', blob: file, mimeType: file.type || 'video/mp4' })
+          } catch (err) {
+            toast.err(err)
+          } finally {
+            setBusy('')
+          }
+        }}
+      />
 
-      <div className="col gap3">
-        <button
-          className="btn btn-ghost btn-full"
-          disabled={Boolean(busy) || recording}
-          onClick={() => fileRef.current?.click()}
-        >
-          {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={16} />}
-          Photo — pick one or several
-        </button>
-
-        <button
-          className={`btn btn-full ${recording ? 'btn-go' : 'btn-ghost'}`}
-          disabled={Boolean(busy) || !canRecord()}
-          onClick={async () => {
-            if (recording) {
-              const rec = recRef.current
-              recRef.current = null
-              setRecording(false)
-              if (!rec) return
-              setBusy('audio')
-              try {
-                const wav = await rec.stop()
-                await queue('notes', await blobToBase64(wav), 'audio/wav')
-              } catch (err) {
-                toast.err(err)
-              } finally {
-                setBusy('')
-              }
-            } else {
-              try {
-                recRef.current = await startRecording()
-                setSecs(0)
-                setRecording(true)
-              } catch (err) {
-                toast.err(err)
-              }
-            }
-          }}
-        >
-          {busy === 'audio' ? (
-            <span className="spin" />
-          ) : (
-            <Icon name={recording ? 'stop' : 'mic'} size={16} />
-          )}
-          {recording ? `Stop · ${clock(secs)}` : 'Voice note'}
-        </button>
-      </div>
-
-      {added > 0 && (
+      {mode === 'text' ? (
         <>
-          <p className="t-sm faint center mt4">{pluralize(added, 'capture')} added this round.</p>
-          <button className="btn btn-primary btn-full mt3" onClick={onClose}>
-            <Icon name="check" size={15} />
-            Done
-          </button>
+          <textarea
+            className="textarea"
+            style={{ minHeight: 150 }}
+            autoFocus
+            placeholder="Talked more about the Kafka migration — she's the one to email first."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="row gap3 mt5">
+            <button className="btn btn-ghost grow" onClick={() => setMode('hub')} disabled={Boolean(busy)}>
+              Back
+            </button>
+            <button className="btn btn-primary grow" onClick={saveText} disabled={Boolean(busy) || text.trim().length < 10}>
+              {busy === 'save' ? <span className="spin spin-dark" /> : <Icon name="spark" size={15} />}
+              Save
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          {items.length > 0 && (
+            <div className="row gap2 wrap" style={{ marginBottom: 'var(--s4)' }}>
+              {items.map((item, i) => (
+                <CaptureChip key={i} item={item} />
+              ))}
+            </div>
+          )}
+
+          <div className="col gap2">
+            <div className="row gap2">
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => fileRef.current?.click()}>
+                {busy === 'img' ? <span className="spin" /> : <Icon name="camera" size={15} />}
+                Photo
+              </button>
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => videoRef.current?.click()}>
+                {busy === 'video' ? <span className="spin" /> : <Icon name="video" size={15} />}
+                Video
+              </button>
+            </div>
+            <div className="row gap2">
+              <button
+                className={`btn grow ${recording ? 'btn-go' : 'btn-ghost'}`}
+                disabled={Boolean(busy) || !canRecord()}
+                onClick={async () => {
+                  if (recording) {
+                    const rec = recRef.current
+                    recRef.current = null
+                    setRecording(false)
+                    if (!rec) return
+                    setBusy('audio')
+                    try {
+                      const wav = await rec.stop()
+                      await add({ kind: 'audio', blob: wav, mimeType: 'audio/wav' })
+                    } catch (err) {
+                      toast.err(err)
+                    } finally {
+                      setBusy('')
+                    }
+                  } else {
+                    try {
+                      recRef.current = await startRecording()
+                      setSecs(0)
+                      setRecording(true)
+                    } catch (err) {
+                      toast.err(err)
+                    }
+                  }
+                }}
+              >
+                {busy === 'audio' ? <span className="spin" /> : <Icon name={recording ? 'stop' : 'mic'} size={15} />}
+                {recording ? clock(secs) : 'Voice'}
+              </button>
+              <button className="btn btn-ghost grow" disabled={Boolean(busy) || recording} onClick={() => setMode('text')}>
+                <Icon name="text" size={15} />
+                Text
+              </button>
+            </div>
+          </div>
+
+          {items.length > 0 && (
+            <button className="btn btn-primary btn-full mt4" onClick={onClose}>
+              <Icon name="check" size={15} />
+              Done
+            </button>
+          )}
         </>
       )}
     </Sheet>
   )
 }
+
+/* ── the contact's standing context — every photo, video, voice note,
+   and typed note captured so far ────────────────────────────────── */
+
+function ContextSection({
+  contact,
+  eventId,
+  onAdd,
+}: {
+  contact: Contact
+  eventId: string
+  onAdd(): void
+}) {
+  const { user, profile } = useAuth()
+  const { events } = useData()
+  const toast = useToast()
+  const [open, setOpen] = useState<ContextItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const items = contact.context || []
+
+  if (!items.length) return null
+
+  async function remove(item: ContextItem) {
+    if (!user) return
+    setDeleting(true)
+    try {
+      const remaining = items.filter((i) => i.id !== item.id)
+      await updateContact(user.uid, eventId, contact.id, { context: remaining })
+      if (item.storagePath) await deleteContextFile(item.storagePath)
+      // The record was written from context including this item — with it
+      // gone, regenerate so the fields/draft/notes drop it too, the same as
+      // adding an item does in the other direction.
+      if (remaining.length) {
+        const event = events.find((e) => e.id === eventId)
+        await updateContact(user.uid, eventId, contact.id, { aiPending: true, aiError: '' })
+        await enqueue({
+          uid: user.uid,
+          eventId,
+          contactId: contact.id,
+          kind: 'context',
+          tone: contact.emailTone || profile?.defaultTone || DEFAULT_TONE,
+          profile: profile || null,
+          event: event ? { name: event.name, date: event.date, location: event.location } : null,
+        })
+      }
+      setOpen(null)
+      toast.ok('Removed.')
+    } catch (err) {
+      toast.err(err)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="mt4">
+      <SectionLabel right={<button className="btn-bare t-sm faint" onClick={onAdd}><Icon name="plus" size={12} />Add</button>}>
+        Context · {items.length}
+      </SectionLabel>
+      <div className="row gap2 wrap">
+        {items.map((item) => (
+          <button key={item.id} className="card-tap" style={{ padding: 0, border: 0, background: 'none' }} onClick={() => setOpen(item)}>
+            <CaptureChip item={{ kind: item.kind, preview: item.kind === 'photo' ? item.url : undefined }} />
+          </button>
+        ))}
+      </div>
+
+      <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? CONTEXT_KIND[open.kind].label : ''}>
+        {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 12 }} />}
+        {open?.kind === 'video' && open.url && (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <video src={open.url} controls style={{ width: '100%', borderRadius: 12 }} />
+        )}
+        {open?.kind === 'audio' && open.url && <audio src={open.url} controls style={{ width: '100%' }} />}
+        {open?.kind === 'text' && <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>{open.text}</p>}
+
+        <button className="btn btn-danger btn-full mt5" disabled={deleting} onClick={() => open && remove(open)}>
+          {deleting ? <span className="spin spin-dark" /> : <Icon name="trash" size={15} />}
+          Remove from context
+        </button>
+      </Sheet>
+    </div>
+  )
+}
+
 
 /* ── plain-text export of one record ─────────────────────── */
 

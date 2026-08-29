@@ -128,3 +128,9 @@ export function feedSort(a: Contact, b: Contact): number {
 export function pluralize(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`
 }
+
+/** A short client-generated id — good enough for a Storage object name or a
+ *  context-item id, where uniqueness only has to hold within one contact. */
+export function newId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}

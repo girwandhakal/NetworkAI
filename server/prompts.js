@@ -81,14 +81,21 @@ export const resumeSystem = `You transcribe and structure resumes for a career-f
 Transcribe the document faithfully into plain text, then pull out the structured fields.
 Keep the transcript complete — it will later be used to write personalized emails, so specifics (project names, technologies, metrics, company names) matter far more than prose.${ANTI_HALLUCINATION}`
 
-/* ── 2. universal image capture ──────────────────────────── */
+/* ── 2. context regeneration — the whole standing record ─── */
 
-export const ocrSchema = S.obj({
+const summaryObj = S.obj({
+  topic: S.str('One short line: what the conversation / material was actually about.'),
+  details: S.str('The concrete specifics worth remembering — projects, teams, tech, advice, hiring timelines. One to three sentences.'),
+  connection: S.str('The personal hook: a hobby, a shared school, a mutual interest, something they said about themselves. Empty string if none was mentioned.'),
+  action: S.str('The next step that was agreed or implied, e.g. "Apply to the SWE intern req by Oct 15 and email her the link." Empty string if none.'),
+})
+
+export const contextSchema = S.obj({
   docType: S.enum(
-    ['Business card', 'Pamphlet', 'Booth sheet', 'Banner', 'Badge', 'Screenshot', 'Handwritten note', 'Other'],
-    'What kind of item the photo shows.',
+    ['Business card', 'Pamphlet', 'Booth sheet', 'Banner', 'Badge', 'Screenshot', 'Handwritten note', 'Conversation', 'Other'],
+    'What kind of material this mostly is. "Conversation" if the context is chiefly a voice note or typed note rather than a photographed item.',
   ),
-  name: S.str("Person's full name, or empty string if the item names no individual."),
+  name: S.str("Person's full name, or empty string if nothing in the context names an individual."),
   company: S.str('Company or organization name, or empty string.'),
   title: S.str('Job title of the named person, or empty string.'),
   email: S.str('Email address, or empty string. Never guess an address from a name and a domain.'),
@@ -96,59 +103,32 @@ export const ocrSchema = S.obj({
   website: S.str('Website URL, or empty string.'),
   linkedin: S.str('LinkedIn profile or company URL, or empty string.'),
   notes: S.str(
-    'Everything else worth keeping: roles they are hiring for, programs, deadlines, QR destinations, taglines, handwritten scribbles. Plain sentences. Empty string if nothing.',
+    'One coherent write-up of everything worth keeping across ALL the context, in plain sentences — roles they are hiring for, programs, deadlines, taglines, handwritten scribbles, whatever was said. Not a list of separate captures; merge overlapping information instead of repeating it. Empty string if nothing.',
   ),
-  priority: S.enum(
-    ['High', 'Medium', 'Low'],
-    'How valuable this contact looks for a job seeker. A named recruiter or engineer with direct contact details is High; a generic company flyer is Low.',
-  ),
-  confidence: S.num('0 to 1. How legible the item was and how sure you are of the extracted fields. Below 0.6 means the user should check it.'),
-  unclear: S.arr(S.str('field name'), 'Names of fields you had to guess at or could not read cleanly.'),
-})
-
-export const ocrSystem = `You are the image-capture engine of Network.Ai, used at career fairs.
-The user photographs ANY item — a business card, a company pamphlet, a booth sheet, a badge, a banner, a handwritten note, or a phone screen. You classify it yourself; the user never tells you what it is.
-
-Read every piece of text in the image, including small print, footers, and handwriting. Then fill in the structured fields.
-
-- Transcribe contact details character by character. A misread email address makes the whole record useless.
-- If the item is a company pamphlet with no individual named, leave name and title empty and put the useful recruiting information in notes.
-- Be honest in "confidence": a crisp business card is 0.9 or above, a blurry banner shot at an angle is 0.3.
-- List any field you had to squint at in "unclear".${ANTI_HALLUCINATION}`
-
-/* ── 3. voice note -> summary + drafts ───────────────────── */
-
-const summaryObj = S.obj({
-  topic: S.str('One short line: what the conversation was actually about.'),
-  details: S.str('The concrete specifics worth remembering — projects, teams, tech, advice, hiring timelines. One to three sentences.'),
-  connection: S.str('The personal hook: a hobby, a shared school, a mutual interest, something they said about themselves. Empty string if none was mentioned.'),
-  action: S.str('The next step that was agreed or implied, e.g. "Apply to the SWE intern req by Oct 15 and email her the link." Empty string if none.'),
-})
-
-export const notesSchema = S.obj({
-  transcript: S.str('Verbatim transcript of the audio. If the input was already text, return it unchanged.'),
-  name: S.str('Contact name if the recording reveals one and it was not already known. Otherwise empty string.'),
-  company: S.str('Company if revealed and not already known. Otherwise empty string.'),
-  title: S.str('Job title if revealed and not already known. Otherwise empty string.'),
   summary: summaryObj,
   emailSubject: S.str('Subject line. Specific, under 60 characters, no colon-heavy jargon.'),
   emailDraft: S.str('The complete follow-up email body, greeting through sign-off. Plain text with blank lines between paragraphs.'),
   linkedinNote: S.str('LinkedIn connection note. HARD LIMIT 280 characters. First person, no greeting line, no sign-off.'),
-  priority: S.enum(['High', 'Medium', 'Low'], 'How valuable this contact is to the user, judged from the conversation.'),
-  confidence: S.num('0 to 1. How clear the audio or the note was.'),
+  priority: S.enum(
+    ['High', 'Medium', 'Low'],
+    'How valuable this contact looks for a job seeker, judged from everything captured so far.',
+  ),
+  confidence: S.num('0 to 1. How legible/clear the material was overall and how sure you are of the extracted fields. Below 0.6 means the user should check it.'),
+  unclear: S.arr(S.str('field name'), 'Names of fields you had to guess at or could not read/hear cleanly.'),
 })
 
-export function notesSystem({ profile, contact, event, tone }) {
+export function contextSystem({ profile, contact, event, tone }) {
   const toneKey = TONES[tone] ? tone : DEFAULT_TONE
-  return `You are the memory engine of Network.Ai. The user just walked away from a career-fair conversation and dictated a 15-30 second voice note (or typed a rough note). You turn that into a structured memory plus ready-to-send follow-ups.
+  return `You are the memory engine of Network.Ai, used at career fairs. The user builds up a standing record for each contact over time — a photo of a business card, a pamphlet, a badge; a video walkthrough of a booth; a voice note dictated right after the conversation; a typed note added later. You receive EVERY piece of that captured so far, together, in the order it was added. Read all of it as one record, not as separate captures, and produce one coherent memory plus ready-to-send follow-ups.
 
-Do three things:
-1. TRANSCRIBE the audio faithfully. Career fairs are loud — do your best, and reflect any difficulty in "confidence". Names and companies are the highest-value words; spell them as best you can hear them.
-2. STRUCTURE what was said into the summary fields. Only what was actually said.
-3. WRITE the follow-up email and the LinkedIn note.
+Do four things:
+1. READ everything given — transcribe/OCR photos and video frames, transcribe audio faithfully (career fairs are loud; reflect any difficulty in "confidence"), and take typed notes as-is.
+2. EXTRACT the structured contact fields. If the same fact appears in two items, use the clearer source; if items conflict, prefer the most specific or most recent one.
+3. WRITE one coherent "notes" write-up and the summary fields — merge overlapping information across items instead of repeating it, the way a person's own notes on someone would read after several encounters, not a log of separate uploads.
+4. WRITE the follow-up email and the LinkedIn note, reflecting everything captured so far — not just the newest item.
 
 THE EMAIL — this is the part that decides whether the user gets a reply:
-- Open by naming the specific thing that was discussed, not "It was great meeting you at the career fair."
+- Open by naming the specific thing that was discussed or shown, not "It was great meeting you at the career fair."
 - Reference at least one concrete detail from the user's own resume or experiences that genuinely connects to what the contact talked about. Name the project or the skill explicitly.
 - Close with the agreed action if there was one, otherwise one clear, low-friction ask.
 - No attachment language, no "Please find attached". Never mention that AI wrote it.
@@ -157,7 +137,7 @@ THE EMAIL — this is the part that decides whether the user gets a reply:
 
 THE LINKEDIN NOTE:
 - Under 280 characters, hard limit. It is pasted into the LinkedIn connection-note box by hand.
-- One specific reference to the conversation. Never "I would like to add you to my professional network."
+- One specific reference to the conversation or material. Never "I would like to add you to my professional network."
 
 ${profileBlock(profile)}
 

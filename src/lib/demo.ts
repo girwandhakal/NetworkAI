@@ -268,10 +268,11 @@ export const demoDb = {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export const demoApi = {
-  async ocrCard() {
-    await wait(900)
+  async generateContext(input: { items?: { kind: string; text?: string }[] }) {
+    await wait(1400)
+    const typed = input.items?.find((i) => i.kind === 'text')?.text?.trim()
     return {
-      docType: 'Business card',
+      docType: typed ? 'Conversation' : 'Business card',
       name: 'Alex Moreau',
       company: 'Cloudmere',
       title: 'Platform Engineering Manager',
@@ -279,23 +280,10 @@ export const demoApi = {
       phone: '(415) 555-0182',
       website: 'cloudmere.io',
       linkedin: 'linkedin.com/in/alexmoreau',
-      notes: 'Hiring backend and platform interns for summer. Mentioned their req opens in early October.',
-      priority: 'High' as const,
-      confidence: 0.93,
+      notes:
+        typed ||
+        'Hiring backend and platform interns for summer. Their req opens in early October. Moving off a monolith and care a lot about deploy speed.',
       unclear: [],
-    }
-  },
-
-  async summarizeNotes(input: { transcript?: string }) {
-    await wait(1400)
-    const transcript =
-      input.transcript?.trim() ||
-      'Talked to Alex Moreau at Cloudmere about their platform team. They are moving off a monolith and care a lot about deploy speed. He asked what I had built with Go. Said to apply to the platform intern req when it opens in October and email him the link.'
-    return {
-      transcript,
-      name: 'Alex Moreau',
-      company: 'Cloudmere',
-      title: 'Platform Engineering Manager',
       summary: {
         topic: 'Their platform team and the migration off a monolith',
         details:
