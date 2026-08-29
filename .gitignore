@@ -9,8 +9,9 @@ dist
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# Contains real Firestore project structure + the owner's email address
+# Contains real Firestore/Storage project structure + the owner's email address
 firestore.rules
+storage.rules
 
 # Personal resume PDF (PII)
 docs/Girwan_Dhakal_Resume.pdf
