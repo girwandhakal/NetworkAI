@@ -867,6 +867,17 @@ ul {
   box-shadow: var(--shadow-lg);
 }
 
+/* Inside an event: just the capture button, sized to fit rather than
+   stretched across a 5-column bar meant for the top-level tabs. */
+.nav-solo {
+  display: flex;
+  width: auto;
+  padding: 0 var(--s2);
+}
+.nav-solo .capbtn {
+  width: var(--nav-h);
+}
+
 .navbtn {
   display: flex;
   flex-direction: column;
