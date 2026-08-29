@@ -9,11 +9,13 @@ import { useData } from '../state/Data'
 import { useToast } from '../state/Toast'
 import { deleteContact, updateContact, watchContact } from '../lib/db'
 import { generateFollowup, sendEmails } from '../lib/api'
-import { addContextItem } from '../lib/context'
+import { addContextItem, type AddContextInput } from '../lib/context'
+import { enqueue } from '../lib/queue'
 import { deleteContextFile } from '../lib/storage'
 import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
 import { clock, isEmail, linkedinSearchUrl, STATUS_STYLE, timeAgo } from '../lib/util'
 import {
+  CONTEXT_KIND,
   DEFAULT_TONE,
   displayName,
   needsCheck,
@@ -491,7 +493,7 @@ function Recapture({
     }
   }, [open])
 
-  async function add(input: Parameters<typeof addContextItem>[3], preview?: string) {
+  async function add(input: AddContextInput, preview?: string) {
     if (!user) return
     await addContextItem(user.uid, eventId, contact.id, input, tone, profile || null, evContext)
     setItems((prev) => [...prev, { kind: input.kind, preview }])
@@ -530,8 +532,7 @@ function Recapture({
           setBusy('img')
           try {
             for (const file of files) {
-              const { mimeType, preview } = await compressImage(file)
-              const blob = await (await fetch(preview)).blob()
+              const { blob, mimeType, preview } = await compressImage(file)
               await add({ kind: 'photo', blob, mimeType }, preview)
             }
           } catch (err) {
@@ -547,7 +548,7 @@ function Recapture({
         accept="video/*"
         hidden
         onChange={async (e) => {
-          const file = Array.from(e.target.files || []).find((f) => f.type.startsWith('video/'))
+          const file = Array.from(e.target.files || []).find((f) => !f.type || f.type.startsWith('video/'))
           e.target.value = ''
           if (!file) return
           if (file.size > MAX_VIDEO_BYTES) {
@@ -670,7 +671,8 @@ function ContextSection({
   eventId: string
   onAdd(): void
 }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const { events } = useData()
   const toast = useToast()
   const [open, setOpen] = useState<ContextItem | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -682,10 +684,25 @@ function ContextSection({
     if (!user) return
     setDeleting(true)
     try {
-      await updateContact(user.uid, eventId, contact.id, {
-        context: items.filter((i) => i.id !== item.id),
-      })
+      const remaining = items.filter((i) => i.id !== item.id)
+      await updateContact(user.uid, eventId, contact.id, { context: remaining })
       if (item.storagePath) await deleteContextFile(item.storagePath)
+      // The record was written from context including this item — with it
+      // gone, regenerate so the fields/draft/notes drop it too, the same as
+      // adding an item does in the other direction.
+      if (remaining.length) {
+        const event = events.find((e) => e.id === eventId)
+        await updateContact(user.uid, eventId, contact.id, { aiPending: true, aiError: '' })
+        await enqueue({
+          uid: user.uid,
+          eventId,
+          contactId: contact.id,
+          kind: 'context',
+          tone: contact.emailTone || profile?.defaultTone || DEFAULT_TONE,
+          profile: profile || null,
+          event: event ? { name: event.name, date: event.date, location: event.location } : null,
+        })
+      }
       setOpen(null)
       toast.ok('Removed.')
     } catch (err) {
@@ -708,7 +725,7 @@ function ContextSection({
         ))}
       </div>
 
-      <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? contextTitle(open) : ''}>
+      <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? CONTEXT_KIND[open.kind].label : ''}>
         {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 12 }} />}
         {open?.kind === 'video' && open.url && (
           // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -726,12 +743,6 @@ function ContextSection({
   )
 }
 
-function contextTitle(item: ContextItem): string {
-  if (item.kind === 'photo') return 'Photo'
-  if (item.kind === 'video') return 'Video'
-  if (item.kind === 'audio') return 'Voice note'
-  return 'Typed note'
-}
 
 /* ── plain-text export of one record ─────────────────────── */
 

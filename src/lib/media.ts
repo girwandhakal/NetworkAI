@@ -16,16 +16,26 @@ export function blobToBase64(blob: Blob): Promise<string> {
 
 const MAX_EDGE = 1600
 
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process the image.'))), type, quality)
+  })
+}
+
 /**
  * Phone photos are 4-12MP; sending them raw wastes seconds of upload on bad
  * venue Wi-Fi for no OCR benefit. Downscale to 1600px on the long edge.
+ *
+ * Returns a Blob directly (not base64) — callers upload it as-is, and the
+ * preview is an object URL rather than a data: URL, so nothing round-trips
+ * through a text encoding it doesn't need.
  */
-export async function compressImage(file: Blob): Promise<{ base64: string; mimeType: string; preview: string }> {
+export async function compressImage(file: Blob): Promise<{ blob: Blob; mimeType: string; preview: string }> {
   const bitmap = await createImageBitmap(file).catch(() => null)
   if (!bitmap) {
     // HEIC and other formats createImageBitmap may refuse — send the original.
-    const base64 = await blobToBase64(file)
-    return { base64, mimeType: file.type || 'image/jpeg', preview: `data:${file.type};base64,${base64}` }
+    const mimeType = file.type || 'image/jpeg'
+    return { blob: file, mimeType, preview: URL.createObjectURL(file) }
   }
 
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
@@ -40,12 +50,8 @@ export async function compressImage(file: Blob): Promise<{ base64: string; mimeT
   ctx.drawImage(bitmap, 0, 0, w, h)
   bitmap.close()
 
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-  return {
-    base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
-    mimeType: 'image/jpeg',
-    preview: dataUrl,
-  }
+  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.85)
+  return { blob, mimeType: 'image/jpeg', preview: URL.createObjectURL(blob) }
 }
 
 /* ── video ───────────────────────────────────────────────── */

@@ -189,3 +189,13 @@ export function captureTypeFor(kind: ContextItem['kind']): Contact['captureType'
   if (kind === 'text') return 'manual'
   return 'image'
 }
+
+/** The one place that names/iconifies a context item's kind — everywhere
+ *  that shows a chip or a label for one should read from here rather than
+ *  re-deriving its own mapping. */
+export const CONTEXT_KIND: Record<ContextItem['kind'], { label: string; icon: 'camera' | 'video' | 'mic' | 'text' }> = {
+  photo: { label: 'Photo', icon: 'camera' },
+  video: { label: 'Video', icon: 'video' },
+  audio: { label: 'Voice note', icon: 'mic' },
+  text: { label: 'Typed note', icon: 'text' },
+}

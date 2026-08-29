@@ -112,7 +112,7 @@ export function isNetworkError(e: unknown): boolean {
  * running; the rest would just repeat that same call. Drop the redundant
  * ones before picking what to run next.
  */
-async function coalesce(): Promise<void> {
+async function coalesce(): Promise<Job[]> {
   const jobs = await listJobs().catch(() => [] as Job[])
   const byContact = new Map<string, Job[]>()
   for (const j of jobs) {
@@ -121,11 +121,13 @@ async function coalesce(): Promise<void> {
     list.push(j)
     byContact.set(key, list)
   }
+  const survivors: Job[] = []
   for (const list of byContact.values()) {
-    if (list.length < 2) continue
     list.sort((a, b) => a.createdAt - b.createdAt)
     for (const stale of list.slice(0, -1)) await dropJob(stale.id)
+    survivors.push(list[list.length - 1])
   }
+  return survivors.sort((a, b) => a.createdAt - b.createdAt)
 }
 
 export async function drain(): Promise<void> {
@@ -134,8 +136,7 @@ export async function drain(): Promise<void> {
   await notify()
   try {
     for (;;) {
-      await coalesce()
-      const jobs = (await listJobs().catch(() => [] as Job[])).sort((a, b) => a.createdAt - b.createdAt)
+      const jobs = await coalesce()
       const job = jobs.find((j) => j.attempts < MAX_ATTEMPTS)
       if (!job || !navigator.onLine) break
       const done = await runJob(job)
@@ -192,15 +193,15 @@ async function runContext(job: Job): Promise<Partial<Contact>> {
   const contextList = contact?.context || []
   if (!contextList.length) return {}
 
-  const items: ContextItemInput[] = []
-  for (const item of contextList) {
-    if (item.kind === 'text') {
-      if (item.text?.trim()) items.push({ kind: 'text', text: item.text })
-    } else if (item.storagePath) {
+  const resolved = await Promise.all(
+    contextList.map(async (item): Promise<ContextItemInput | null> => {
+      if (item.kind === 'text') return item.text?.trim() ? { kind: 'text', text: item.text } : null
+      if (!item.storagePath) return null
       const data = await fetchContextBase64(item.storagePath)
-      items.push({ kind: item.kind, mimeType: item.mimeType, data })
-    }
-  }
+      return { kind: item.kind, mimeType: item.mimeType, data }
+    }),
+  )
+  const items = resolved.filter((i): i is ContextItemInput => i !== null)
   if (!items.length) return {}
 
   const r = await generateContext({
@@ -210,13 +211,23 @@ async function runContext(job: Job): Promise<Partial<Contact>> {
     event: job.event,
     tone: job.tone,
   })
-  return mergeContext(r, contact || {})
+
+  // Re-read live rather than merging against the `contact` fetched above —
+  // this call can run for several seconds (thinking budget, several media
+  // items), and an inline edit made while it's in flight must win, not get
+  // clobbered by a merge against a now-stale snapshot.
+  const live = await getContact(job.uid, job.eventId, job.contactId)
+  return mergeContext(r, live || contact || {}, job.tone)
 }
 
 /* ── result merging ──────────────────────────────────────── */
 
-const keep = (existing: string | undefined, incoming: string | undefined) =>
-  existing && existing.trim() ? existing : incoming || ''
+/** Prefer this pass's fresh read — it just re-examined every context item
+ *  together, so it is better placed to correct an earlier misread than a
+ *  first-write-wins rule would allow. Only fall back to the existing value
+ *  when this pass came back empty (e.g. a field no single item mentions). */
+const fresh = (incoming: string | undefined, existing: string | undefined) =>
+  (incoming && incoming.trim()) || existing || ''
 
 export function mergeContext(
   r: {
@@ -238,16 +249,16 @@ export function mergeContext(
     unclear: string[]
   },
   existing: Partial<Contact>,
+  tone: Tone,
 ): Partial<Contact> {
   return {
-    // Never clobber something the user already typed; only fill blanks.
-    name: keep(existing.name, r.name),
-    company: keep(existing.company, r.company),
-    title: keep(existing.title, r.title),
-    email: keep(existing.email, r.email),
-    phone: keep(existing.phone, r.phone),
-    website: keep(existing.website, r.website),
-    linkedin: keep(existing.linkedin, r.linkedin),
+    name: fresh(r.name, existing.name),
+    company: fresh(r.company, existing.company),
+    title: fresh(r.title, existing.title),
+    email: fresh(r.email, existing.email),
+    phone: fresh(r.phone, existing.phone),
+    website: fresh(r.website, existing.website),
+    linkedin: fresh(r.linkedin, existing.linkedin),
     // Everything below reflects the *whole* context as of this pass, so it
     // is rewritten in full each time rather than merged — that is the point
     // of reading all the context together instead of one item at a time.
@@ -255,6 +266,7 @@ export function mergeContext(
     summary: r.summary,
     emailSubject: r.emailSubject,
     emailDraft: r.emailDraft,
+    emailTone: tone,
     linkedinNote: r.linkedinNote,
     priority: r.priority,
     docType: r.docType,

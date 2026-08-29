@@ -8,7 +8,7 @@ import { createContact, createEvent } from '../lib/db'
 import { addContextItem, type AddContextInput } from '../lib/context'
 import { canRecord, compressImage, MAX_VIDEO_BYTES, startRecording, type Recorder } from '../lib/media'
 import { clock, todayISO } from '../lib/util'
-import { DEFAULT_TONE, type ContextItem, type EventRec, type Tone } from '../lib/types'
+import { CONTEXT_KIND, DEFAULT_TONE, type ContextItem, type EventRec, type Tone } from '../lib/types'
 
 type Mode = 'pick' | 'voice' | 'type' | 'session'
 
@@ -243,8 +243,7 @@ export function CaptureSheet({
       if (!user) throw new Error('Not signed in.')
       const s = await ensureSession()
       for (const file of files) {
-        const { mimeType, preview } = await compressImage(file)
-        const blob = await (await fetch(preview)).blob()
+        const { blob, mimeType, preview } = await compressImage(file)
         await addContext(sessionRef.current || s, { kind: 'photo', blob, mimeType }, preview)
       }
     } catch (e) {
@@ -257,7 +256,10 @@ export function CaptureSheet({
   /* ── video — a single file, no in-app recording ──────────── */
 
   async function onVideo(list: FileList | null) {
-    const file = Array.from(list || []).find((f) => f.type.startsWith('video/'))
+    // The `accept="video/*"` picker already restricts the choice; some
+    // mobile camera integrations hand back a freshly-recorded file with no
+    // `type` at all, so an empty type is trusted rather than rejected.
+    const file = Array.from(list || []).find((f) => !f.type || f.type.startsWith('video/'))
     if (!file) {
       if (list && list.length) toast.err('That is not a video file.')
       return
@@ -496,10 +498,9 @@ export function CaptureChip({ item }: { item: CaptureItem }) {
   if (item.kind === 'photo' && item.preview) {
     return <img src={item.preview} alt="" className="capture-chip" />
   }
-  const iconName = item.kind === 'audio' ? 'mic' : item.kind === 'video' ? 'video' : 'text'
   return (
     <span className={`capture-chip capture-chip-${item.kind}`}>
-      <Icon name={iconName} size={18} />
+      <Icon name={CONTEXT_KIND[item.kind].icon} size={18} />
     </span>
   )
 }

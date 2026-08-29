@@ -17,13 +17,16 @@ const cfg = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-/** False when .env has not been filled in — the app shows a setup screen instead of crashing. */
-export const firebaseReady = Boolean(cfg.apiKey && cfg.projectId && cfg.appId)
+/** False when .env has not been filled in — the app shows a setup screen instead of crashing.
+ *  storageBucket is included because context capture (photos/video/voice) depends on Storage
+ *  being configured just as much as auth/Firestore do — without it, getStorage() below throws. */
+export const firebaseReady = Boolean(cfg.apiKey && cfg.projectId && cfg.appId && cfg.storageBucket)
 
 export const missingFirebaseKeys = Object.entries({
   VITE_FIREBASE_API_KEY: cfg.apiKey,
   VITE_FIREBASE_AUTH_DOMAIN: cfg.authDomain,
   VITE_FIREBASE_PROJECT_ID: cfg.projectId,
+  VITE_FIREBASE_STORAGE_BUCKET: cfg.storageBucket,
   VITE_FIREBASE_APP_ID: cfg.appId,
 })
   .filter(([, v]) => !v)
@@ -42,7 +45,14 @@ if (firebaseReady) {
   dbRef = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   })
-  storageRef = getStorage(app)
+  try {
+    storageRef = getStorage(app)
+  } catch {
+    // A malformed (rather than missing — that's caught by firebaseReady
+    // above) bucket value would otherwise throw here at module load and
+    // take the whole app down before React ever renders.
+    storageRef = null
+  }
 }
 
 /** Only call these behind a `firebaseReady` guard. */

@@ -46,11 +46,15 @@ export async function addContextItem(
         }
 
   const current = await getContact(uid, eventId, contactId)
+  const isFirstItem = !current?.context?.length
   await updateContact(uid, eventId, contactId, {
     context: [...(current?.context || []), item],
-    // A provenance badge for the contact row — set once, from whatever
-    // kind of item started this record, never touched again.
-    captureType: current?.captureType || captureTypeFor(input.kind),
+    // A provenance badge for the contact row — set once, from whatever kind
+    // of item started this record, never touched again. Keyed off whether
+    // there was already any context (not off the stored captureType field
+    // itself, which a fresh contact defaults to 'manual' before its first
+    // item ever lands).
+    captureType: isFirstItem ? captureTypeFor(input.kind) : current?.captureType,
     aiPending: true,
     aiError: '',
   })
