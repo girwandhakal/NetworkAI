@@ -18,6 +18,7 @@ import {
   memoryBlock,
 } from './prompts.js'
 import { sendBatch, mailStatus } from './mailer.js'
+import { isAdminConfigured, readBlob } from './firebaseAdmin.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -33,7 +34,7 @@ app.use(express.json({ limit: '30mb' }))
 
 const ok = (v) => typeof v === 'string' && v.trim().length > 0
 
-function inlineData(data, mimeType, fallback) {
+function inlineData(data, mimeType, fallback, fileName) {
   const raw = String(data || '')
   // Accept both bare base64 and full data: URLs.
   const m = raw.match(/^data:([^;]+);base64,(.*)$/)
@@ -41,6 +42,11 @@ function inlineData(data, mimeType, fallback) {
     inlineData: {
       mimeType: m ? m[1] : mimeType || fallback,
       data: m ? m[2] : raw,
+      // Word docs etc. go to OpenAI as a generic file part — it identifies
+      // the format from the filename's extension, so the real name (not a
+      // placeholder) needs to travel with the bytes or parsing silently
+      // produces nothing useful.
+      fileName: ok(fileName) ? fileName : undefined,
     },
   }
 }
@@ -77,6 +83,7 @@ function bad(message) {
   return e
 }
 
+
 /* ── GET /api/health ─────────────────────────────────────── */
 
 app.get('/api/health', (_req, res) => {
@@ -99,7 +106,7 @@ app.post(
     const parts = []
     if (ok(data)) {
       parts.push({ text: `Transcribe and structure this resume${ok(fileName) ? ` (file: ${fileName})` : ''}.` })
-      parts.push(inlineData(data, mimeType, 'application/pdf'))
+      parts.push(inlineData(data, mimeType, 'application/pdf', fileName))
     } else {
       parts.push({ text: `Structure this resume text:\n\n"""\n${text.slice(0, 40000)}\n"""` })
     }
@@ -122,6 +129,38 @@ app.post(
       resumeText: clean(out.resumeText) || clean(text),
       resumeFileName: clean(fileName),
     })
+  }),
+)
+
+/* ── GET /api/blob ───────────────────────────────────────── */
+
+// Photos, voice notes and the resume are stored in Firestore rather than
+// Cloud Storage (see src/lib/storage.ts), which means there is no public
+// download URL for them. This route is that URL: it reassembles a file from
+// its chunk documents and serves it, so pdf.js, an <img>, and a mail
+// attachment can all treat it like any other file on the web.
+//
+// Unauthenticated by design, exactly like a Cloud Storage download link —
+// the per-file token minted at upload time is the credential, and readBlob
+// refuses anything else.
+app.get(
+  '/api/blob',
+  route(async (req, res) => {
+    if (!isAdminConfigured()) {
+      throw Object.assign(
+        new Error('Stored files cannot be served: add FIREBASE_SERVICE_ACCOUNT_KEY to .env (see README).'),
+        { status: 503 },
+      )
+    }
+    const storagePath = String(req.query.path || '')
+    const token = String(req.query.token || '')
+    if (!ok(storagePath) || !ok(token)) throw bad('Missing path or token.')
+
+    const { mime, bytes } = await readBlob(storagePath, token)
+    res.type(mime)
+    // Private: this is one user's own file, and the token is in the URL.
+    res.set('Cache-Control', 'private, max-age=300')
+    res.send(bytes)
   }),
 )
 
@@ -240,35 +279,6 @@ app.post(
       })),
     )
     res.json({ results, sent: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length })
-  }),
-)
-
-/* ── GET /api/resume-file (proxy) ─────────────────────────── */
-
-// The resume lives in Firebase Storage, fetched by the client straight from
-// its download URL for viewing normally — but pdf.js's range-request fetches
-// need CORS the Storage bucket may not grant, so the viewer routes through
-// here instead: same-origin to the browser, a plain server-side fetch to
-// Storage (CORS is a browser rule, not a server one).
-const RESUME_HOSTS = new Set(['firebasestorage.googleapis.com'])
-
-app.get(
-  '/api/resume-file',
-  route(async (req, res) => {
-    const raw = String(req.query.url || '')
-    if (!ok(raw)) throw bad('Missing url.')
-    let target
-    try {
-      target = new URL(raw)
-    } catch {
-      throw bad('Invalid url.')
-    }
-    if (!RESUME_HOSTS.has(target.hostname)) throw bad('That url is not a Firebase Storage file.')
-
-    const upstream = await fetch(target.toString()).catch(() => null)
-    if (!upstream || !upstream.ok) throw bad('Could not fetch the resume file.')
-    res.type(upstream.headers.get('content-type') || 'application/pdf')
-    res.send(Buffer.from(await upstream.arrayBuffer()))
   }),
 )
 

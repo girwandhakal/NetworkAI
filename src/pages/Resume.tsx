@@ -8,10 +8,6 @@ import { mergeResume } from '../lib/types'
 // PDF.js is ~1.5MB with its worker — only fetched when this tab is opened.
 const PdfView = lazy(() => import('../components/PdfView'))
 
-/** Same-origin proxy for pdf.js's range-request fetches, which Firebase
- *  Storage's CORS policy would otherwise block from the browser. */
-const proxied = (url: string) => `/api/resume-file?url=${encodeURIComponent(url)}`
-
 /**
  * Just the resume — whatever the user last uploaded. There is no separate
  * "add a resume" flow elsewhere; this tab, onboarding, and Me -> Resume all
@@ -46,7 +42,7 @@ export function Resume() {
           <h1 className="t-display clamp-1">{profile.resumeFileName || 'Resume'}</h1>
           <p className="t-sm faint mt2">This file type can't be previewed here — replace it with a PDF from the Me tab, or open it as-is.</p>
         </header>
-        <a className="btn btn-ghost" href={proxied(profile.resumeUrl)} target="_blank" rel="noreferrer">
+        <a className="btn btn-ghost" href={profile.resumeUrl} target="_blank" rel="noreferrer">
           <Icon name="external" size={15} />
           Open it
         </a>
@@ -68,7 +64,7 @@ export function Resume() {
           </div>
         }
       >
-        <PdfView src={proxied(profile.resumeUrl)} />
+        <PdfView src={profile.resumeUrl} />
       </Suspense>
     </div>
   )

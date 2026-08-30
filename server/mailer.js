@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import { readBlob } from './firebaseAdmin.js'
 
 /**
  * Two supported transports, in priority order:
@@ -33,27 +34,30 @@ function throttleMs() {
   return Number.isFinite(n) && n >= 0 ? n : 1200
 }
 
-// Only ever fetch the resume from Firebase Storage — resumeUrl is
-// client-supplied, so this keeps a compromised or buggy client from turning
-// this into an open fetch-anything proxy.
-const RESUME_HOSTS = new Set(['firebasestorage.googleapis.com'])
-
-/** The uploaded resume's bytes, straight from Firebase Storage — the same
- *  file the user sees in the Resume tab, fetched fresh at send time rather
- *  than cached anywhere server-side. */
+/** The uploaded resume's bytes — the same file the user sees in the Resume
+ *  tab, read fresh at send time rather than cached anywhere server-side.
+ *
+ *  resumeUrl is the same-origin /api/blob link stored on the profile, so the
+ *  path and token come straight back out of it and the bytes are read from
+ *  Firestore directly — no point making the server fetch itself over HTTP.
+ *  Reading only what that token unlocks is also what keeps a buggy or
+ *  compromised client from turning this into a fetch-anything proxy. */
 async function fetchResume(resumeUrl) {
-  let target
+  let params
   try {
-    target = new URL(resumeUrl)
+    // A relative URL needs a base to parse against; the base is discarded.
+    params = new URL(String(resumeUrl), 'http://localhost').searchParams
   } catch {
     throw new Error('The saved resume link is invalid. Re-upload it from the Me tab.')
   }
-  if (!RESUME_HOSTS.has(target.hostname)) {
-    throw new Error('The saved resume link is not a Firebase Storage file.')
+  const storagePath = params.get('path') || ''
+  const token = params.get('token') || ''
+  if (!storagePath || !token) {
+    throw new Error('The saved resume link is out of date. Re-upload it from the Me tab.')
   }
-  const res = await fetch(target.toString())
-  if (!res.ok) throw new Error('Could not fetch the resume — try re-uploading it from the Me tab.')
-  return Buffer.from(await res.arrayBuffer())
+  const { bytes } = await readBlob(storagePath, token)
+  if (!bytes.length) throw new Error('Could not read the resume — try re-uploading it from the Me tab.')
+  return bytes
 }
 
 let transporter = null

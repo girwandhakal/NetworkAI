@@ -6,7 +6,6 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore'
-import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const cfg = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,15 +17,14 @@ const cfg = {
 }
 
 /** False when .env has not been filled in — the app shows a setup screen instead of crashing.
- *  storageBucket is included because context capture (photos/voice notes) depends on Storage
- *  being configured just as much as auth/Firestore do — without it, getStorage() below throws. */
-export const firebaseReady = Boolean(cfg.apiKey && cfg.projectId && cfg.appId && cfg.storageBucket)
+ *  storageBucket is deliberately not required: nothing in the app touches Cloud Storage any
+ *  more (see storage.ts — file bytes live in Firestore), so a project with no bucket is fine. */
+export const firebaseReady = Boolean(cfg.apiKey && cfg.projectId && cfg.appId)
 
 export const missingFirebaseKeys = Object.entries({
   VITE_FIREBASE_API_KEY: cfg.apiKey,
   VITE_FIREBASE_AUTH_DOMAIN: cfg.authDomain,
   VITE_FIREBASE_PROJECT_ID: cfg.projectId,
-  VITE_FIREBASE_STORAGE_BUCKET: cfg.storageBucket,
   VITE_FIREBASE_APP_ID: cfg.appId,
 })
   .filter(([, v]) => !v)
@@ -35,7 +33,6 @@ export const missingFirebaseKeys = Object.entries({
 let app: FirebaseApp | null = null
 let authRef: Auth | null = null
 let dbRef: Firestore | null = null
-let storageRef: FirebaseStorage | null = null
 
 if (firebaseReady) {
   app = initializeApp(cfg)
@@ -45,17 +42,8 @@ if (firebaseReady) {
   dbRef = initializeFirestore(app, {
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   })
-  try {
-    storageRef = getStorage(app)
-  } catch {
-    // A malformed (rather than missing — that's caught by firebaseReady
-    // above) bucket value would otherwise throw here at module load and
-    // take the whole app down before React ever renders.
-    storageRef = null
-  }
 }
 
 /** Only call these behind a `firebaseReady` guard. */
 export const auth = authRef as Auth
 export const db = dbRef as Firestore
-export const storage = storageRef as FirebaseStorage

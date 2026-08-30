@@ -50,9 +50,7 @@ Your data lives in **your own** Firebase project. At https://console.firebase.go
 2. **Build → Authentication → Sign-in method** → enable **Email/Password**. Enable **Google** too if you want the Google button to work.
 3. **Build → Firestore Database → Create database** (production mode is fine — the rules below lock it down).
 4. **Firestore → Rules** → paste the contents of [`firestore.rules`](firestore.rules) → **Publish**.
-5. **Build → Storage → Get started** (production mode). This is where every photo and voice note you capture is kept, so a contact's context survives closing the app and comes back on any device.
-6. **Storage → Rules** → paste the contents of [`storage.rules`](storage.rules) → **Publish**.
-7. **Project settings → Your apps → Web app** → copy the config values into `.env`:
+5. **Project settings → Your apps → Web app** → copy the config values into `.env`:
 
 ```
 VITE_FIREBASE_API_KEY=
@@ -62,6 +60,16 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 ```
+
+> **You do not need Cloud Storage.** Provisioning a Storage bucket requires the Blaze plan, so file bytes — every photo, voice note and your resume — are kept in Firestore instead, base64'd and split across chunk documents under `users/{uid}/blobs`. That is what the `blobs` rules in `firestore.rules` cover, and it is why `VITE_FIREBASE_STORAGE_BUCKET` above is optional: nothing reads it. Spark's free tier (1 GiB stored, 20k writes/day) is far more than a career fair needs.
+
+6. **Project settings → Service accounts → Generate new private key** → save the downloaded JSON file somewhere outside the repo (it grants full admin access to the project — never commit it) → point `.env` at it:
+
+```
+FIREBASE_SERVICE_ACCOUNT_KEY=/absolute/path/to/serviceAccountKey.json
+```
+
+The browser writes stored files itself, straight to Firestore — this key is what lets the **server read them back**, so `/api/blob` can hand the resume to the in-app PDF viewer and attach it to an outgoing email. Without it, uploads and parsing still work, but nothing that needs a file as a *file* does: no preview, no attachment.
 
 > Vite only reads `.env` at startup — restart `npm run dev` after editing it.
 
@@ -102,7 +110,7 @@ Bulk sends are throttled — `MAIL_THROTTLE_MS` (default 1200ms) is the gap betw
 
 There's no profile form anywhere — name, school, major, target roles, all of it comes straight off your resume. Upload one during onboarding, or later from the **Resume** tab or **Me → Resume**; parsing it is what fills in the rest. Uploading a newer one re-parses and replaces everything, including the file itself — that's the only way to change any of it.
 
-The actual file (not just its extracted text) is kept in Firebase Storage, which is also what "append resume" on a follow-up email attaches at send time. Pasting text instead of uploading a file gets you the extracted profile fields but nothing to preview or attach — there's no document behind it to keep.
+The actual file (not just its extracted text) is kept in Firestore alongside everything else, which is also what "append resume" on a follow-up email attaches at send time. Pasting text instead of uploading a file gets you the extracted profile fields but nothing to preview or attach — there's no document behind it to keep.
 
 Note that most mobile browsers refuse to render a PDF inline; on those you get a tap-to-open button instead of an embedded preview. Non-PDF resumes (Word, plain text) get parsed the same way but aren't previewable in-app either.
 
@@ -132,7 +140,7 @@ Event  ("Fall 2026 Tech Career Fair")
 | Endpoint | What it does |
 | --- | --- |
 | `GET /api/health` | Reports whether OpenAI and email are configured |
-| `GET /api/resume-file` | Proxies the uploaded resume from Firebase Storage for the in-app viewer (sidesteps a browser CORS restriction the direct Storage URL would hit) |
+| `GET /api/blob` | Serves a stored file (resume, photo, voice note) by reassembling its Firestore chunks — the URL an `<img>`, pdf.js, or a mail attachment points at. Gated by the per-file token minted at upload, the same way a Cloud Storage download link is |
 | `POST /api/parse-resume` | PDF/Word/text resume → structured profile + transcript |
 | `POST /api/generate-context` | Every photo/voice-note/typed-note captured for a contact so far → the whole record rewritten in one pass |
 | `POST /api/generate-followup` | Rewrites the follow-ups in a different tone, or to a freeform instruction |
@@ -152,4 +160,4 @@ Event  ("Fall 2026 Tech Career Fair")
 
 ## Privacy
 
-Single-user by design. Contact details and your resume go to OpenAI to produce the summaries and drafts — that is the tradeoff the app is built on. Voice notes are additionally sent to OpenAI's transcription endpoint before that. Photos and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firebase Storage under `/users/{yourUid}`, gated by `storage.rules` the same way Firestore is. One caveat that rules can't close: each file's download URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — normal Firebase Storage behavior, not a bug specific to this app, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to OpenAI for that one request, it does not persist anything itself.
+Single-user by design. Contact details and your resume go to OpenAI to produce the summaries and drafts — that is the tradeoff the app is built on. Voice notes are additionally sent to OpenAI's transcription endpoint before that. Photos and voice notes are kept — that is what lets adding one later regenerate a contact from everything captured about them, not just the newest item — in Firestore under `/users/{yourUid}/blobs`, gated by `firestore.rules` exactly like the rest of your data. One caveat those rules can't close: each file's URL carries its own access token, so anyone who obtains that exact URL (from browser history, a shared screenshot, a proxy log) can fetch that one file without signing in at all — the same tradeoff a Firebase Storage download link makes, but worth knowing before treating a captured photo or voice note as private once its URL has left your hands. Nothing is stored server-side; the server only ever forwards bytes to OpenAI for that one request, it does not persist anything itself.

@@ -11,7 +11,7 @@
     "build": "tsc -b && vite build",
     "start": "cross-env NODE_ENV=production node server/index.js",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "compression": "^1.8.1",
@@ -19,6 +19,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.22.2",
     "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
     "nodemailer": "^7.0.13",
     "pdfjs-dist": "^6.2.108",
     "react": "^18.3.1",
