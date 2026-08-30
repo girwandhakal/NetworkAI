@@ -194,10 +194,10 @@ export function ContactDetail() {
       )}
 
       {needsCheck(c) && !c.aiPending && (
-        <div className="card row-t gap3" style={{ marginBottom: 'var(--s4)', borderColor: 'var(--mauve-line)', background: 'var(--mauve-dim)' }}>
-          <span className="mauve" style={{ paddingTop: 2 }}><Icon name="alert" size={16} /></span>
+        <div className="panel-ai row-t gap3" style={{ marginBottom: 'var(--s4)' }}>
+          <span className="accent" style={{ paddingTop: 2 }}><Icon name="alert" size={16} /></span>
           <div className="grow">
-            <div className="t-section mauve">Worth a second look</div>
+            <div className="t-section accent">Worth a second look</div>
             <p className="t-sm muted mt2">
               {Math.round((c.confidence || 0) * 100)}% confident
               {c.unclear?.length ? ` · unclear: ${c.unclear.join(', ')}` : ''}
@@ -241,7 +241,7 @@ export function ContactDetail() {
 
       {/* ── email draft ── */}
       <div className="mt5">
-        <SectionLabel right={<span className="chip chip-mauve">{tone}</span>}>Follow-up email</SectionLabel>
+        <SectionLabel right={<span className="chip chip-accent">{tone}</span>}>Follow-up email</SectionLabel>
 
         {draftReady ? (
           <div className="panel-ai">
@@ -250,7 +250,7 @@ export function ContactDetail() {
               placeholder="Subject line"
               onSave={(v) => patch({ emailSubject: v })}
             />
-            <hr className="hr" style={{ background: 'var(--mauve-line)', opacity: 0.4 }} />
+            <hr className="hr" style={{ background: 'var(--accent-line)', opacity: 0.4 }} />
             <InlineField
               multiline
               value={c.emailDraft || ''}
@@ -320,7 +320,7 @@ export function ContactDetail() {
               {c.sentAt ? 'Send again' : 'Send now'}
             </button>
             {!isEmail(c.email) && <p className="t-sm faint center mt2">Add an email address to send.</p>}
-            {c.sentAt && <p className="t-sm celadon center mt2">Sent {timeAgo(c.sentAt)}.</p>}
+            {c.sentAt && <p className="t-sm good center mt2">Sent {timeAgo(c.sentAt)}.</p>}
 
             <Tweak busy={Boolean(busy)} onSubmit={(text) => regenerate(tone, text)} />
           </>
@@ -350,7 +350,7 @@ export function ContactDetail() {
                 className={`btn btn-sm btn-full mt3 ${c.linkedinAdded ? 'btn-ghost' : 'btn-bare'}`}
                 onClick={() => patch({ linkedinAdded: !c.linkedinAdded })}
               >
-                <span className={`checkbox${c.linkedinAdded ? ' on' : ''}`} style={{ width: 16, height: 16, borderRadius: 5 }}>
+                <span className={`checkbox${c.linkedinAdded ? ' on' : ''}`} style={{ width: 18, height: 18, borderRadius: 'var(--r1)' }}>
                   <Icon name="check" size={10} strokeWidth={2.8} />
                 </span>
                 {c.linkedinAdded ? 'Added on LinkedIn' : 'Mark as added'}
@@ -699,7 +699,7 @@ function ContextSection({
       </div>
 
       <Sheet open={Boolean(open)} onClose={() => setOpen(null)} title={open ? CONTEXT_KIND[open.kind].label : ''}>
-        {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 12 }} />}
+        {open?.kind === 'photo' && open.url && <img src={open.url} alt="" style={{ width: '100%', borderRadius: 'var(--r4)' }} />}
         {open?.kind === 'audio' && open.url && <audio src={open.url} controls style={{ width: '100%' }} />}
         {open?.kind === 'text' && <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>{open.text}</p>}
 

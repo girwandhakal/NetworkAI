@@ -58,7 +58,7 @@ export function InlineField({
   }
 
   const style = big
-    ? { fontFamily: 'var(--f-head)', fontSize: 21, fontWeight: 700, letterSpacing: '-0.016em', lineHeight: 1.15 }
+    ? { fontFamily: 'var(--f-display)', fontSize: 24, fontWeight: 700, letterSpacing: '-0.014em', lineHeight: 1.2 }
     : undefined
 
   const link =

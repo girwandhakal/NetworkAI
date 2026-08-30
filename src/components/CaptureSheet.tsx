@@ -327,8 +327,8 @@ export function CaptureSheet({
       {mode === 'pick' && (
         <>
           <div className="col gap3">
-            <CaptureOption icon="mic" title="Voice note" accent="mauve" disabled={!canRecord()} onClick={() => setMode('voice')} />
-            <CaptureOption icon="camera" title="Image" accent="celadon" onClick={() => fileRef.current?.click()} />
+            <CaptureOption icon="mic" title="Voice note" tone="accent" disabled={!canRecord()} onClick={() => setMode('voice')} />
+            <CaptureOption icon="camera" title="Image" tone="dark" onClick={() => fileRef.current?.click()} />
             <CaptureOption icon="text" title="Type it" onClick={() => setMode('type')} />
           </div>
           {eventPicker}
@@ -461,26 +461,26 @@ export function CaptureChip({ item }: { item: CaptureItem }) {
 function CaptureOption({
   icon,
   title,
-  accent,
+  tone,
   onClick,
   disabled,
 }: {
   icon: 'mic' | 'camera' | 'text'
   title: string
-  accent?: 'mauve' | 'celadon'
+  /** Only the palette's two loud surfaces; anything else stays neutral. */
+  tone?: 'accent' | 'dark'
   onClick(): void
   disabled?: boolean
 }) {
-  const bg =
-    accent === 'mauve' ? 'var(--mauve)' : accent === 'celadon' ? 'var(--celadon)' : 'var(--surface-3)'
-  const fg = accent ? 'var(--black)' : 'var(--ink-2)'
+  const bg = tone === 'accent' ? 'var(--accent)' : tone === 'dark' ? 'var(--night)' : 'var(--surface-3)'
+  const fg = tone === 'accent' ? 'var(--on-accent)' : tone === 'dark' ? 'var(--white)' : 'var(--ink-2)'
   return (
     <button className="card card-tap row gap4" onClick={onClick} disabled={disabled} style={{ opacity: disabled ? 0.5 : 1 }}>
       <span
         style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
+          width: 44,
+          height: 44,
+          borderRadius: 'var(--r4)',
           background: bg,
           color: fg,
           display: 'flex',

@@ -87,7 +87,7 @@ export function Empty({
         style={{
           width: 52,
           height: 52,
-          borderRadius: 16,
+          borderRadius: 'var(--r4)',
           background: 'var(--surface-2)',
           border: '1px solid var(--line)',
           display: 'flex',

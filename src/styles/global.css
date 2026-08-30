@@ -1,129 +1,158 @@
 /* ============================================================
-   Network.Ai — design system
-   A soft, modern "liquid glass" language: floating glass surfaces,
-   ambient gradient light, big confident type, generous rounding.
-   Brand marks: Mauve Magic ca7df9 · Celadon aef6c7 · Black 040403 · White ffffff
-   Type: Plus Jakarta Sans (UI) · Fraunces (display accents)
+   Network.Ai — design system (beehiiv language)
+   A creator-workspace aesthetic: cool gray ground, crisp contoured
+   surfaces, restrained elevation, one saturated note of hot pink
+   reserved for the moments that ask for action.
+   Type: Clash Grotesk (display) · Satoshi (UI + body)
    ============================================================ */
 
 :root {
-  /* ── brand marks (fixed) ── */
+  /* ── raw marks ── */
   --white: #ffffff;
-  --black: #040403;
-  --mauve: #ca7df9;
-  --celadon: #aef6c7;
+  --night: #060419; /* dark surface — inverted panels, dock, tooltips */
+  --pink: #ff5ec4; /* the activation colour */
+  --mauve: #9d9db8; /* muted primary — secondary fills, never type */
 
-  /* ── light theme surfaces: cool violet-tinted paper, layered by shadow not line ── */
-  --bg: #f5f3fa;
-  --bg-2: #efecf7;
+  /* ── ground & surfaces: cool gray paper, separated by contour ── */
+  --bg: #d9dbdf;
+  --bg-2: #cfd2d8;
   --surface: #ffffff;
-  --surface-2: #f7f5fb;
-  --surface-3: #efebf5;
-  --glass: rgba(255, 255, 255, 0.72);
-  --line: rgba(23, 15, 41, 0.08);
-  --line-strong: rgba(23, 15, 41, 0.16);
+  --surface-2: #eef0f3;
+  --surface-3: #e2e5ea;
+  --dark: #060419;
+  --glass: rgba(255, 255, 255, 0.78);
+
+  /* Contours carry hierarchy here, not shadow — so lines are real, not hints. */
+  --line: rgba(11, 13, 42, 0.13);
+  --line-strong: rgba(11, 13, 42, 0.28);
+  --line-hard: rgba(11, 13, 42, 0.55);
 
   /* ── ink ── */
-  --ink: #16101f;
-  --ink-2: rgba(22, 16, 31, 0.66);
-  --ink-3: rgba(22, 16, 31, 0.46);
-  --ink-4: rgba(22, 16, 31, 0.26);
+  --ink: #0b0d2a;
+  --ink-2: rgba(11, 13, 42, 0.68);
+  --ink-3: rgba(11, 13, 42, 0.5);
+  --ink-4: rgba(11, 13, 42, 0.3);
+  --on-dark: #ffffff;
+  --on-dark-2: rgba(255, 255, 255, 0.66);
 
-  /* Mauve/celadon are pale — great as fills, unreadable as text on white.
-     The -ink variants are the same hues pushed to AA contrast for type. */
-  --mauve-ink: #8b2fd6;
-  --mauve-2: #a855e8;
-  --mauve-dim: rgba(202, 125, 249, 0.16);
-  --mauve-line: rgba(202, 125, 249, 0.45);
-  --mauve-glow: rgba(168, 85, 232, 0.38);
+  /* Accent — hot pink. Bright enough to read as a fill, not as type: it
+     pairs with near-black ink on top. --accent-ink is the same hue pushed
+     to AA so it can carry text on the light ground. */
+  --accent: #ff5ec4;
+  --accent-2: #ff3fb5;
+  --accent-ink: #a8006b;
+  --accent-dim: rgba(255, 94, 196, 0.16);
+  --accent-line: rgba(255, 94, 196, 0.5);
+  --on-accent: #2b0019;
 
-  --celadon-ink: #0e8a52;
-  --celadon-dim: rgba(174, 246, 199, 0.32);
-  --celadon-line: rgba(90, 200, 145, 0.5);
-  --celadon-glow: rgba(46, 191, 128, 0.32);
+  /* Primary — the desaturated mauve. Fails AA as type by design; it recedes.
+     Reserved for secondary fills, muted labels and decorative rules. */
+  --primary: #9d9db8;
+  --primary-2: #8b8ba8;
+  --primary-ink: #4b4b66;
+  --primary-dim: rgba(157, 157, 184, 0.22);
+  --primary-line: rgba(157, 157, 184, 0.6);
 
-  --danger: #d33a3a;
-  --danger-dim: rgba(211, 58, 58, 0.08);
-  --danger-line: rgba(211, 58, 58, 0.28);
+  /* Positive states. The system has no success hue, so this is a deep teal
+     picked to sit inside the cool palette rather than fight it. */
+  --good: #0d7a63;
+  --good-ink: #0a6151;
+  --good-dim: rgba(13, 122, 99, 0.13);
+  --good-line: rgba(13, 122, 99, 0.36);
 
-  /* ── gradients ── */
-  --grad-brand: linear-gradient(135deg, #d99bfb 0%, #b565ef 55%, #8b2fd6 100%);
-  --grad-go: linear-gradient(135deg, #c9fbdd 0%, #aef6c7 55%, #6fe0a0 100%);
-  --grad-mesh: radial-gradient(60% 50% at 15% 0%, rgba(202, 125, 249, 0.24), transparent 60%),
-    radial-gradient(45% 40% at 100% 10%, rgba(174, 246, 199, 0.28), transparent 60%);
+  --danger: #c0273a;
+  --danger-dim: rgba(192, 39, 58, 0.1);
+  --danger-line: rgba(192, 39, 58, 0.34);
 
-  /* ── type ── */
-  --f-display: 'Fraunces', 'Plus Jakarta Sans', ui-serif, Georgia, serif;
-  --f-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* ── the one atmospheric touch in an otherwise flat system ── */
+  --grad-mesh: radial-gradient(70% 45% at 100% 0%, rgba(255, 94, 196, 0.14), transparent 62%),
+    radial-gradient(55% 40% at 0% 4%, rgba(157, 157, 184, 0.24), transparent 60%);
 
-  /* ── spacing ── */
+  /* ── type ──
+     Fontshare ships both as static weights only, so italics anywhere are
+     synthesised by the browser. Display italics are avoided for that reason. */
+  --f-display: 'Clash Grotesk', 'Satoshi', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-ui: 'Satoshi', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* ── spacing: 4px base, every step a multiple of 4 ── */
   --s1: 4px;
-  --s2: 6px;
-  --s3: 8px;
-  --s4: 12px;
-  --s5: 16px;
-  --s6: 22px;
-  --s7: 32px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 48px;
+  --s8: 64px;
+  --touch: 44px;
 
-  /* ── generous, bento-style rounding ── */
-  --r1: 10px;
-  --r2: 16px;
-  --r3: 22px;
-  --r4: 30px;
+  /* ── radius: small and geometric ── */
+  --r1: 2px;
+  --r2: 4px;
+  --r3: 6px;
+  --r4: 8px;
+  --pill: 9999px;
 
   --shell: 560px;
-  --nav-h: 60px;
+  --nav-h: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* ── motion: functional, not ornamental ── */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --fast: 125ms;
+  --base: 200ms;
+  --slow: 320ms;
 
-  /* ── elevation: shadows carry depth so borders can stay near-invisible ── */
-  --shadow-xs: 0 1px 2px rgba(23, 15, 41, 0.05);
-  --shadow-sm: 0 2px 10px rgba(23, 15, 41, 0.06), 0 1px 2px rgba(23, 15, 41, 0.05);
-  --shadow-md: 0 10px 30px rgba(23, 15, 41, 0.1), 0 2px 8px rgba(23, 15, 41, 0.06);
-  --shadow-lg: 0 20px 60px rgba(23, 15, 41, 0.16), 0 4px 16px rgba(23, 15, 41, 0.08);
-  --shadow-glow-mauve: 0 8px 24px var(--mauve-glow);
-  --shadow-glow-go: 0 8px 24px var(--celadon-glow);
+  /* ── elevation: deliberately restrained and near-identical by design ── */
+  --shadow-xs: 0 1px 2px rgba(11, 13, 42, 0.06);
+  --shadow-sm: 0 4px 6px -1px rgba(11, 13, 42, 0.1), 0 2px 4px -2px rgba(11, 13, 42, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(11, 13, 42, 0.14), 0 2px 4px -2px rgba(11, 13, 42, 0.12);
+  --shadow-lg: 0 4px 4px rgba(11, 13, 42, 0.25), 0 12px 24px -8px rgba(11, 13, 42, 0.2);
 }
 
-/* ── dark theme: same structure, inverted ground, brighter marks ── */
+/* ── dark mode: the #060419 surface becomes the ground ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0c0a12;
-    --bg-2: #100e1a;
-    --surface: #17141f;
-    --surface-2: #1d1928;
-    --surface-3: #262032;
-    --glass: rgba(23, 20, 31, 0.66);
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.14);
+    --bg: #060419;
+    --bg-2: #0a0822;
+    --surface: #12102b;
+    --surface-2: #191735;
+    --surface-3: #232042;
+    --dark: #12102b;
+    --glass: rgba(18, 16, 43, 0.78);
 
-    --ink: #f3f0f9;
-    --ink-2: rgba(243, 240, 249, 0.7);
-    --ink-3: rgba(243, 240, 249, 0.48);
-    --ink-4: rgba(243, 240, 249, 0.28);
+    --line: rgba(255, 255, 255, 0.1);
+    --line-strong: rgba(255, 255, 255, 0.2);
+    --line-hard: rgba(255, 255, 255, 0.42);
 
-    --mauve-ink: #cd93f8;
-    --mauve-2: #b876ef;
-    --mauve-dim: rgba(202, 125, 249, 0.16);
-    --mauve-line: rgba(202, 125, 249, 0.36);
+    --ink: #ffffff;
+    --ink-2: rgba(255, 255, 255, 0.7);
+    --ink-3: rgba(255, 255, 255, 0.5);
+    --ink-4: rgba(255, 255, 255, 0.3);
 
-    --celadon-ink: #7be8ac;
-    --celadon-dim: rgba(174, 246, 199, 0.14);
-    --celadon-line: rgba(126, 224, 168, 0.32);
+    --accent-ink: #ff8ed5;
+    --accent-dim: rgba(255, 94, 196, 0.18);
+    --accent-line: rgba(255, 94, 196, 0.42);
 
-    --danger: #ff6b6b;
-    --danger-dim: rgba(255, 107, 107, 0.12);
-    --danger-line: rgba(255, 107, 107, 0.3);
+    --primary-ink: #c2c2d8;
+    --primary-dim: rgba(157, 157, 184, 0.18);
+    --primary-line: rgba(157, 157, 184, 0.4);
 
-    --grad-mesh: radial-gradient(60% 50% at 15% 0%, rgba(202, 125, 249, 0.22), transparent 60%),
-      radial-gradient(45% 40% at 100% 10%, rgba(174, 246, 199, 0.14), transparent 60%);
+    --good: #3fc7a6;
+    --good-ink: #5fd9be;
+    --good-dim: rgba(63, 199, 166, 0.14);
+    --good-line: rgba(63, 199, 166, 0.36);
 
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
-    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
+    --danger: #ff7183;
+    --danger-dim: rgba(255, 113, 131, 0.14);
+    --danger-line: rgba(255, 113, 131, 0.36);
+
+    --grad-mesh: radial-gradient(70% 45% at 100% 0%, rgba(255, 94, 196, 0.12), transparent 62%),
+      radial-gradient(55% 40% at 0% 4%, rgba(157, 157, 184, 0.12), transparent 60%);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 4px 4px rgba(0, 0, 0, 0.5), 0 12px 24px -8px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -143,15 +172,13 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--f-ui);
-  font-size: 15px;
-  font-weight: 450;
-  line-height: 1.44;
-  letter-spacing: -0.006em;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
   min-height: 100dvh;
   overscroll-behavior-y: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'ss01' 1;
 }
 
 code,
@@ -173,27 +200,42 @@ button {
   font: inherit;
 }
 
+/* Only a plain-text anchor gets the link treatment. A Link doing structural
+   work — a card, an icon button, a nav tab — carries its own component class
+   and stays inherited-colour so the accent isn't spent on every tap target. */
 a {
-  color: var(--mauve-ink);
+  color: var(--accent-ink);
   text-decoration: none;
+  font-weight: 700;
 }
 a:hover {
   text-decoration: underline;
+}
+a.card-tap,
+a.btn,
+a.btn-icon,
+a.btn-bare {
+  color: inherit;
+  font-weight: inherit;
+}
+a.card-tap:hover {
+  text-decoration: none;
 }
 
 ul {
   list-style: none;
 }
 
+/* The system asks for a 2px pink ring at 2px offset on everything focusable. */
 :focus-visible {
-  outline: 2px solid var(--mauve-ink);
+  outline: 2px solid var(--accent-2);
   outline-offset: 2px;
-  border-radius: var(--r1);
+  border-radius: var(--r2);
 }
 
 ::selection {
-  background: var(--mauve);
-  color: var(--black);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 * {
@@ -206,63 +248,66 @@ ul {
 }
 *::-webkit-scrollbar-thumb {
   background: var(--line-strong);
-  border-radius: 99px;
+  border-radius: var(--pill);
 }
 
 /* ============================================================
    TYPOGRAPHY
+   Clash Grotesk carries display weight; Satoshi does everything else.
    ============================================================ */
 
 .t-display {
   font-family: var(--f-display);
-  font-size: 34px;
-  line-height: 1.03;
-  font-weight: 600;
+  font-size: clamp(34px, 9.5vw, 48px);
+  line-height: 1;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .t-title {
-  font-family: var(--f-ui);
-  font-size: 20px;
-  line-height: 1.18;
+  font-family: var(--f-display);
+  font-size: 24px;
+  line-height: 1.2;
   font-weight: 700;
-  letter-spacing: -0.018em;
+  letter-spacing: -0.014em;
 }
 
 .t-section {
   font-family: var(--f-ui);
-  font-size: 15.5px;
-  line-height: 1.24;
-  font-weight: 650;
-  letter-spacing: -0.012em;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .t-body {
   font-family: var(--f-ui);
-  font-size: 15px;
-  line-height: 1.48;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 500;
 }
 
 .t-sm {
   font-family: var(--f-ui);
-  font-size: 13px;
-  line-height: 1.42;
-  font-weight: 450;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 500;
 }
 
 .t-label {
   font-family: var(--f-ui);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
 
 .t-num {
-  font-family: var(--f-ui);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--f-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 .muted {
@@ -271,11 +316,14 @@ ul {
 .faint {
   color: var(--ink-3);
 }
-.mauve {
-  color: var(--mauve-ink);
+/* Pink as type needs the AA-corrected hue, never the raw fill colour. */
+.accent {
+  color: var(--accent-ink);
+  font-weight: 700;
 }
-.celadon {
-  color: var(--celadon-ink);
+.good {
+  color: var(--good-ink);
+  font-weight: 700;
 }
 .italic {
   font-style: italic;
@@ -327,18 +375,18 @@ ul {
 
 .page {
   flex: 1;
-  padding: 0 var(--s5) calc(var(--nav-h) + var(--safe-b) + 92px);
-  animation: page-in 0.32s var(--ease) both;
+  padding: 0 var(--s5) calc(var(--nav-h) + var(--safe-b) + 96px);
+  animation: page-in var(--base) var(--ease) both;
 }
 
 .page.no-nav {
-  padding-bottom: calc(var(--safe-b) + var(--s6));
+  padding-bottom: calc(var(--safe-b) + var(--s7));
 }
 
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
 }
 
@@ -349,12 +397,12 @@ ul {
   margin: var(--s4) 0;
 }
 
-/* ── sticky glass page header ── */
+/* ── sticky page header; fades the ground in under itself ── */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(var(--bg) 55%, rgba(255, 255, 255, 0));
+  background: linear-gradient(var(--bg) 62%, transparent);
   padding: calc(env(safe-area-inset-top, 0px) + var(--s6)) var(--s5) var(--s4);
   margin: 0 calc(var(--s5) * -1);
 }
@@ -362,26 +410,26 @@ ul {
 .back {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--s1);
   color: var(--ink-3);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   padding: var(--s1) 0;
-  transition: color 0.15s;
+  transition: color var(--fast) var(--ease);
 }
 .back:hover {
-  color: var(--ink);
+  color: var(--accent-ink);
 }
 
 /* ============================================================
-   CARDS — soft elevated tiles, bento-style
+   CARDS — flat, contoured tiles. Depth comes from the line, not the stack.
    ============================================================ */
 
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r3);
-  padding: var(--s5);
+  border-radius: var(--r4);
+  padding: var(--s4);
   box-shadow: var(--shadow-sm);
 }
 
@@ -390,17 +438,16 @@ ul {
   width: 100%;
   text-align: left;
   transition:
-    border-color 0.2s var(--ease),
-    box-shadow 0.25s var(--ease),
-    transform 0.18s var(--ease);
+    border-color var(--fast) var(--ease),
+    box-shadow var(--base) var(--ease),
+    background var(--fast) var(--ease);
 }
 .card-tap:hover {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 .card-tap:active {
-  transform: translateY(0) scale(0.99);
+  background: var(--surface-2);
   box-shadow: var(--shadow-xs);
 }
 
@@ -409,26 +456,36 @@ ul {
   overflow: hidden;
 }
 
-/* Softly lit glass panel used for AI output. */
+/* AI output — a pink rule down the edge rather than a tinted wash, so the
+   generated text still sits on a plain readable surface. */
 .panel-ai {
-  background: linear-gradient(165deg, var(--mauve-dim), rgba(202, 125, 249, 0.03) 60%);
-  border: 1px solid var(--mauve-line);
-  border-radius: var(--r3);
-  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r4);
+  padding: var(--s4);
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
-.panel-ai::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 90% at 100% 0%, rgba(174, 246, 199, 0.18), transparent 55%);
-  pointer-events: none;
+
+/* The inverted #060419 surface the token set calls for. */
+.panel-dark {
+  background: var(--dark);
+  color: var(--on-dark);
+  border: 1px solid var(--dark);
+  border-radius: var(--r4);
+  padding: var(--s4);
+  box-shadow: var(--shadow-sm);
+}
+.panel-dark .faint,
+.panel-dark .muted {
+  color: var(--on-dark-2);
 }
 
 /* ============================================================
-   BUTTONS — pill-shaped, gradient-filled primaries
+   BUTTONS — pill geometry, 44px touch target, pink reserved for the
+   one action on screen that actually wants pressing.
    ============================================================ */
 
 .btn {
@@ -437,23 +494,20 @@ ul {
   justify-content: center;
   gap: var(--s2);
   font-family: var(--f-ui);
-  font-size: 14.5px;
-  font-weight: 650;
-  letter-spacing: -0.008em;
-  padding: 11px var(--s6);
-  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.006em;
+  padding: 10px var(--s5);
+  border-radius: var(--pill);
   border: 1px solid transparent;
-  min-height: 44px;
+  min-height: var(--touch);
   transition:
-    transform 0.15s var(--spring),
-    opacity 0.15s,
-    background 0.2s,
-    box-shadow 0.2s,
-    border-color 0.15s;
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
   white-space: nowrap;
-}
-.btn:active:not(:disabled) {
-  transform: scale(0.965);
 }
 .btn:disabled {
   opacity: 0.4;
@@ -461,34 +515,44 @@ ul {
 }
 
 .btn-primary {
-  background: var(--grad-brand);
-  border-color: transparent;
-  color: #1a0329;
-  box-shadow: var(--shadow-glow-mauve);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-xs);
 }
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.05);
-  box-shadow: 0 10px 30px var(--mauve-glow);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-2);
+  box-shadow: none;
 }
 
+/* The inverted button: near-black fill, white type. Carries weight without
+   spending the accent. */
 .btn-go {
-  background: var(--grad-go);
-  border-color: transparent;
-  color: #04371f;
-  box-shadow: var(--shadow-glow-go);
+  background: var(--night);
+  border-color: var(--night);
+  color: var(--white);
+  box-shadow: var(--shadow-xs);
 }
 .btn-go:hover:not(:disabled) {
-  filter: brightness(1.04);
+  background: #100d33;
+  border-color: #100d33;
+  box-shadow: var(--shadow-sm);
 }
 
+/* Secondary — the muted mauve, deliberately quiet. */
 .btn-ghost {
-  background: var(--surface-2);
-  border-color: var(--line);
+  background: var(--surface);
+  border-color: var(--line-strong);
   color: var(--ink);
 }
 .btn-ghost:hover:not(:disabled) {
-  background: var(--surface-3);
-  border-color: var(--line-strong);
+  background: var(--surface-2);
+  border-color: var(--line-hard);
 }
 
 .btn-bare {
@@ -496,11 +560,11 @@ ul {
   color: var(--ink-2);
   padding: 8px var(--s3);
   min-height: 36px;
-  border-radius: var(--r1);
+  border-radius: var(--r3);
 }
 .btn-bare:hover:not(:disabled) {
-  color: var(--ink);
-  background: var(--surface-2);
+  color: var(--accent-ink);
+  background: var(--accent-dim);
 }
 
 .btn-danger {
@@ -508,10 +572,15 @@ ul {
   border-color: var(--danger-line);
   color: var(--danger);
 }
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--white);
+}
 
 .btn-sm {
-  font-size: 13px;
-  padding: 7px var(--s5);
+  font-size: 13.5px;
+  padding: 6px var(--s4);
   min-height: 36px;
 }
 
@@ -520,34 +589,31 @@ ul {
 }
 
 .btn-icon {
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
+  width: var(--touch);
+  height: var(--touch);
+  min-height: var(--touch);
   padding: 0;
-  border-radius: 50%;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   color: var(--ink-2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  box-shadow: var(--shadow-xs);
   transition:
-    color 0.15s,
-    border-color 0.15s,
-    transform 0.15s var(--spring);
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
 }
 .btn-icon:hover:not(:disabled) {
-  color: var(--ink);
-  border-color: var(--line-strong);
-}
-.btn-icon:active:not(:disabled) {
-  transform: scale(0.92);
+  color: var(--accent-ink);
+  border-color: var(--accent-line);
+  background: var(--accent-dim);
 }
 
 /* ============================================================
-   FORM FIELDS
+   FORM FIELDS — dark contour on light ground, pink focus ring.
    ============================================================ */
 
 .field {
@@ -560,7 +626,7 @@ ul {
   font-family: var(--f-ui);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
@@ -569,18 +635,19 @@ ul {
 .textarea,
 .select {
   width: 100%;
-  background: var(--surface-2);
-  border: 1.5px solid transparent;
-  border-radius: var(--r2);
+  background: var(--surface);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--r3);
   color: var(--ink);
   font-family: var(--f-ui);
-  font-size: 15px;
-  line-height: 1.44;
-  padding: 11px var(--s5);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 10px var(--s3);
+  min-height: var(--touch);
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s,
-    background 0.15s;
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
   -webkit-appearance: none;
   appearance: none;
 }
@@ -592,80 +659,79 @@ ul {
 .textarea:focus,
 .select:focus {
   outline: none;
-  background: var(--surface);
-  border-color: var(--mauve);
-  box-shadow: 0 0 0 4px var(--mauve-dim);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 .textarea {
   resize: vertical;
-  min-height: 84px;
+  min-height: 88px;
 }
 
 .select {
   background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
     linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
   background-position:
-    calc(100% - 15px) 21px,
-    calc(100% - 10px) 21px;
+    calc(100% - 16px) 20px,
+    calc(100% - 11px) 20px;
   background-size:
     5px 5px,
     5px 5px;
   background-repeat: no-repeat;
-  padding-right: 32px;
+  padding-right: 34px;
 }
 
-/* Inline-editable value that looks like text until you touch it. */
+/* Inline-editable value that reads as text until you touch it. */
 .inline-edit {
   width: 100%;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--r1);
+  border-radius: var(--r2);
   color: var(--ink);
   font-family: var(--f-ui);
-  font-size: 15px;
-  line-height: 1.44;
-  padding: 5px var(--s2);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 4px var(--s2);
   margin-left: calc(var(--s2) * -1);
   transition:
-    border-color 0.15s,
-    background 0.15s;
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
 }
 .inline-edit:hover {
   background: var(--surface-2);
+  border-color: var(--line);
 }
 .inline-edit:focus {
   outline: none;
   background: var(--surface);
-  border-color: var(--mauve);
-  box-shadow: 0 0 0 3px var(--mauve-dim);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .inline-edit::placeholder {
   color: var(--ink-4);
 }
 
 /* ============================================================
-   SEARCH BAR — pill-shaped, glass, clean by default
+   SEARCH BAR
    ============================================================ */
 
 .search-bar {
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  background: var(--surface-2);
-  border: 1.5px solid transparent;
-  border-radius: 999px;
-  padding: 0 var(--s5);
-  height: 46px;
+  gap: var(--s2);
+  background: var(--surface);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--pill);
+  padding: 0 var(--s4);
+  height: var(--touch);
   transition:
-    border-color 0.15s,
-    box-shadow 0.15s,
-    background 0.15s;
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
 }
 .search-bar:focus-within {
-  background: var(--surface);
-  border-color: var(--mauve);
-  box-shadow: 0 0 0 4px var(--mauve-dim);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 .search-bar input {
   flex: 1;
@@ -674,7 +740,8 @@ ul {
   border: none;
   color: var(--ink);
   font-family: var(--f-ui);
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 500;
   height: 100%;
 }
 .search-bar input::placeholder {
@@ -684,31 +751,32 @@ ul {
   outline: none;
 }
 
-/* Sort toggle — compact pill button, icon flips direction. */
+/* Sort toggle — the icon flips to carry direction, not colour alone. */
 .sortbtn {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--s1);
   flex: none;
   font-family: var(--f-ui);
-  font-size: 12.5px;
-  font-weight: 650;
-  padding: 7px var(--s4);
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px var(--s3);
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
   color: var(--ink-2);
   transition:
-    color 0.15s,
-    border-color 0.15s,
-    background 0.15s;
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
 }
 .sortbtn:hover {
-  color: var(--ink);
-  border-color: var(--line-strong);
+  color: var(--accent-ink);
+  border-color: var(--accent-line);
+  background: var(--accent-dim);
 }
 .sortbtn svg {
-  transition: transform 0.25s var(--spring);
+  transition: transform var(--base) var(--ease);
 }
 .sortbtn.desc svg {
   transform: scaleY(-1);
@@ -716,6 +784,7 @@ ul {
 
 /* ============================================================
    CHIPS · PILLS · BADGES
+   Every status chip pairs its colour with a word, never colour alone.
    ============================================================ */
 
 .chip {
@@ -723,26 +792,26 @@ ul {
   align-items: center;
   gap: var(--s1);
   font-family: var(--f-ui);
-  font-size: 11.5px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0;
-  padding: 4px var(--s3);
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  padding: 3px var(--s2);
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
   color: var(--ink-2);
   white-space: nowrap;
 }
 
-.chip-mauve {
-  background: var(--mauve-dim);
-  border-color: var(--mauve-line);
-  color: var(--mauve-ink);
+.chip-accent {
+  background: var(--accent-dim);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
 }
-.chip-celadon {
-  background: var(--celadon-dim);
-  border-color: var(--celadon-line);
-  color: var(--celadon-ink);
+.chip-good {
+  background: var(--good-dim);
+  border-color: var(--good-line);
+  color: var(--good-ink);
 }
 .chip-warn {
   background: var(--danger-dim);
@@ -750,12 +819,17 @@ ul {
   color: var(--danger);
 }
 .chip-solid {
-  background: var(--grad-brand);
-  border-color: transparent;
-  color: #1a0329;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.chip-mauve {
+  background: var(--primary-dim);
+  border-color: var(--primary-line);
+  color: var(--primary-ink);
 }
 
-/* Segmented tone/filter selector — horizontally scrollable on small screens. */
+/* Segmented tone/filter selector — scrolls sideways when it overflows. */
 .segbar {
   display: flex;
   gap: var(--s2);
@@ -771,58 +845,61 @@ ul {
 .seg {
   flex: none;
   font-family: var(--f-ui);
-  font-size: 12.5px;
-  font-weight: 650;
-  padding: 7px var(--s5);
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px var(--s4);
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
   color: var(--ink-2);
-  transition: all 0.2s var(--ease);
+  min-height: 36px;
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
 }
 .seg:hover {
-  color: var(--ink);
-  border-color: var(--line-strong);
+  color: var(--accent-ink);
+  border-color: var(--accent-line);
 }
 .seg.on {
-  background: var(--grad-brand);
-  border-color: transparent;
-  color: #1a0329;
-  box-shadow: var(--shadow-glow-mauve);
+  background: var(--night);
+  border-color: var(--night);
+  color: var(--white);
 }
 
-/* Priority rail on a contact row. */
+/* Priority rail on a contact row — always paired with a status chip. */
 .rail {
   width: 3px;
-  border-radius: 99px;
+  border-radius: var(--pill);
   flex: none;
   align-self: stretch;
   min-height: 34px;
-  background: linear-gradient(var(--celadon), var(--celadon));
+  background: var(--line-strong);
 }
 .rail-High {
-  background: var(--grad-brand);
+  background: var(--accent);
 }
 .rail-Medium {
-  background: var(--celadon-line);
+  background: var(--primary);
 }
 .rail-Low {
   background: var(--line-strong);
 }
 
 .dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex: none;
   background: var(--ink-4);
 }
 .dot-live {
-  background: var(--celadon-ink);
+  background: var(--good);
   animation: pulse 1.6s infinite;
 }
 .dot-work {
-  background: var(--mauve-ink);
+  background: var(--accent-2);
   animation: pulse 1.1s infinite;
 }
 @keyframes pulse {
@@ -836,7 +913,7 @@ ul {
 }
 
 /* ============================================================
-   BOTTOM NAVIGATION — floating liquid-glass dock
+   BOTTOM NAVIGATION — a solid dark dock, the inverted surface at work
    ============================================================ */
 
 .navwrap {
@@ -848,7 +925,7 @@ ul {
   display: flex;
   justify-content: center;
   pointer-events: none;
-  padding: 0 var(--s5) calc(var(--s4) + var(--safe-b));
+  padding: 0 var(--s5) calc(var(--s3) + var(--safe-b));
 }
 
 .nav {
@@ -858,25 +935,26 @@ ul {
   height: var(--nav-h);
   display: grid;
   align-items: center;
-  background: var(--glass);
-  backdrop-filter: blur(22px) saturate(180%);
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  background: var(--night);
+  border: 1px solid var(--night);
+  border-radius: var(--pill);
   box-shadow: var(--shadow-lg);
 }
-/* Outside an event: the four top-level tabs, no capture button — capture
-   only makes sense once you are inside a specific event. */
+/* Outside an event: the four top-level tabs. Capture only makes sense once
+   you are inside a specific event, so it is not here. */
 .nav-tabs {
   grid-template-columns: repeat(4, 1fr);
 }
 
 /* Inside an event: just the capture button, sized to fit rather than
-   stretched across a 5-column bar meant for the top-level tabs. */
+   stretched across a bar meant for four tabs. */
 .nav-solo {
   display: flex;
   width: auto;
   padding: 0 var(--s2);
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 .nav-solo .capbtn {
   width: var(--nav-h);
@@ -887,28 +965,41 @@ ul {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  color: var(--ink-4);
-  font-size: 10.5px;
-  font-weight: 650;
+  color: var(--on-dark-2);
+  font-family: var(--f-ui);
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0;
   padding: var(--s2) 0;
-  transition: color 0.15s;
+  min-height: var(--touch);
+  justify-content: center;
+  transition: color var(--fast) var(--ease);
+}
+.navbtn:hover {
+  color: var(--white);
 }
 .navbtn.on {
-  color: var(--ink);
+  color: var(--white);
 }
-.navbtn.on .navicon {
-  color: var(--mauve-ink);
+/* Active tab is marked by both colour and a pink underline — never colour alone. */
+.navbtn.on::after {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  margin-top: 1px;
 }
 .navicon {
   display: block;
-  transition: transform 0.2s var(--spring);
+  transition: color var(--fast) var(--ease);
 }
 .navbtn.on .navicon {
-  transform: translateY(-2px) scale(1.08);
+  color: var(--accent);
 }
 
-/* Center capture button, lifted above the bar. */
+/* Capture button — the single pink affordance inside an event. */
 .capbtn {
   position: relative;
   display: flex;
@@ -917,23 +1008,24 @@ ul {
   height: 100%;
 }
 .capbtn > span {
-  position: absolute;
-  bottom: 10px;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--grad-brand);
-  color: #1a0329;
+  background: var(--accent);
+  color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 0 0 5px var(--bg),
-    0 8px 22px var(--mauve-glow);
-  transition: transform 0.2s var(--spring);
+  box-shadow: var(--shadow-lg);
+  transition:
+    background var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+.capbtn:hover > span {
+  background: var(--accent-2);
 }
 .capbtn:active > span {
-  transform: scale(0.88);
+  box-shadow: var(--shadow-xs);
 }
 
 /* ============================================================
@@ -944,12 +1036,11 @@ ul {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(12, 8, 20, 0.4);
-  backdrop-filter: blur(6px);
+  background: rgba(6, 4, 25, 0.55);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  animation: fade 0.2s var(--ease);
+  animation: fade var(--fast) var(--ease);
 }
 @keyframes fade {
   from {
@@ -966,9 +1057,9 @@ ul {
   border: 1px solid var(--line);
   border-bottom: none;
   border-radius: var(--r4) var(--r4) 0 0;
-  padding: var(--s3) var(--s5) calc(var(--safe-b) + var(--s6));
+  padding: var(--s2) var(--s5) calc(var(--safe-b) + var(--s6));
   box-shadow: var(--shadow-lg);
-  animation: rise 0.32s var(--ease);
+  animation: rise var(--slow) var(--ease);
 }
 @keyframes rise {
   from {
@@ -979,28 +1070,29 @@ ul {
 .grabber {
   width: 36px;
   height: 4px;
-  border-radius: 99px;
+  border-radius: var(--pill);
   background: var(--line-strong);
-  margin: var(--s3) auto var(--s5);
+  margin: var(--s2) auto var(--s4);
 }
 
 .sheet-title {
   font-family: var(--f-display);
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
   letter-spacing: -0.016em;
-  margin-bottom: var(--s2);
+  margin-bottom: var(--s1);
 }
 
 /* ============================================================
-   TOASTS
+   TOASTS — dark surface, so they read as system voice, not page content
    ============================================================ */
 
 .toasts {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--nav-h) + var(--safe-b) + 24px);
+  bottom: calc(var(--nav-h) + var(--safe-b) + var(--s6));
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -1014,35 +1106,32 @@ ul {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  background: var(--glass);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r2);
+  gap: var(--s2);
+  background: var(--night);
+  border: 1px solid var(--night);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--r3);
   padding: var(--s3) var(--s4);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--white);
   box-shadow: var(--shadow-lg);
-  animation: toast-in 0.28s var(--spring);
+  animation: toast-in var(--base) var(--ease);
 }
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.96);
+    transform: translateY(10px);
   }
 }
 .toast-ok {
-  border-color: var(--celadon-line);
-  color: var(--celadon-ink);
+  border-left-color: var(--good);
 }
 .toast-err {
-  border-color: var(--danger-line);
-  color: var(--danger);
+  border-left-color: var(--danger);
 }
 .toast-info {
-  color: var(--ink);
+  border-left-color: var(--accent);
 }
 
 /* ============================================================
@@ -1056,21 +1145,25 @@ ul {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--grad-brand);
-  color: #1a0329;
+  background: var(--night);
+  color: var(--white);
   margin: 0 auto;
   position: relative;
   flex: none;
-  transition: transform 0.2s var(--spring);
-  box-shadow: 0 10px 30px var(--mauve-glow);
+  border: 1px solid var(--night);
+  transition:
+    background var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+  box-shadow: var(--shadow-md);
 }
 .mic:active {
-  transform: scale(0.94);
+  box-shadow: var(--shadow-xs);
 }
+/* Recording is the loudest state in the app, so it gets the accent. */
 .mic.rec {
-  background: var(--grad-go);
-  color: #04371f;
-  box-shadow: 0 10px 30px var(--celadon-glow);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 .mic.rec::before,
 .mic.rec::after {
@@ -1078,7 +1171,7 @@ ul {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid var(--celadon-line);
+  border: 2px solid var(--accent-line);
   animation: ring 2s infinite ease-out;
 }
 .mic.rec::after {
@@ -1105,37 +1198,36 @@ ul {
 }
 .meter i {
   width: 3px;
-  border-radius: 99px;
-  background: var(--celadon-ink);
+  border-radius: var(--pill);
+  background: var(--accent-2);
   transition: height 0.07s linear;
 }
 
 .timer {
-  font-family: var(--f-ui);
-  font-size: 27px;
-  font-weight: 800;
+  font-family: var(--f-display);
+  font-size: 30px;
+  font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-/* One item of standing context on a contact — a photo thumbnail, or a
-   plain icon chip standing in for a voice note / typed note (there's
-   nothing worth previewing). */
+/* One item of standing context on a contact — a photo thumbnail, or a plain
+   icon chip standing in for a voice note / typed note. */
 .capture-chip {
   width: 60px;
   height: 60px;
-  border-radius: 12px;
+  border-radius: var(--r4);
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   object-fit: cover;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
 }
 .capture-chip-audio {
-  background: var(--mauve-dim);
-  border-color: var(--mauve-line);
-  color: var(--mauve-ink);
+  background: var(--accent-dim);
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
 }
 .capture-chip-text {
   background: var(--surface-3);
@@ -1143,7 +1235,7 @@ ul {
 }
 .capture-chip-pending {
   border-style: dashed;
-  border-color: var(--line-strong);
+  border-color: var(--line-hard);
 }
 
 /* ============================================================
@@ -1151,17 +1243,20 @@ ul {
    ============================================================ */
 
 .spin {
-  width: 15px;
-  height: 15px;
-  border: 2px solid var(--line);
-  border-top-color: var(--mauve-ink);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent-2);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   flex: none;
 }
+/* Spinner sitting on a solid button — pink or near-black. Deriving both
+   borders from currentColor keeps it legible on either fill. */
 .spin-dark {
   border-color: rgba(255, 255, 255, 0.3);
-  border-top-color: rgba(255, 255, 255, 0.95);
+  border-color: color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
 }
 @keyframes spin {
   to {
@@ -1173,7 +1268,7 @@ ul {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
   background-size: 240% 100%;
   animation: shimmer 1.3s infinite;
-  border-radius: var(--r1);
+  border-radius: var(--r2);
 }
 @keyframes shimmer {
   to {
@@ -1188,21 +1283,25 @@ ul {
 }
 
 .checkbox {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  border: 1.5px solid var(--line-strong);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r2);
+  border: 1px solid var(--line-hard);
+  background: var(--surface);
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  transition: all 0.18s var(--spring);
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
   color: transparent;
 }
 .checkbox.on {
-  background: var(--grad-go);
-  border-color: transparent;
-  color: #04371f;
+  background: var(--night);
+  border-color: var(--night);
+  color: var(--white);
 }
 
 .stat {
@@ -1210,19 +1309,43 @@ ul {
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r2);
-  padding: var(--s4) var(--s5);
+  border-radius: var(--r4);
+  padding: var(--s3) var(--s4);
   box-shadow: var(--shadow-sm);
 }
 
-.offline-bar {
-  background: var(--mauve-dim);
-  border: 1px solid var(--mauve-line);
-  border-radius: var(--r2);
-  padding: var(--s3) var(--s5);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--mauve-ink);
+/* Standing strip above the page — offline queue, demo mode. The left rule
+   carries the meaning; the surface stays plain so it never shouts. */
+.offline-bar,
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  background: var(--surface);
+  border: 1px solid var(--line-hard);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r3);
+  padding: var(--s2) var(--s4);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.notice {
+  border-left-color: var(--primary);
+}
+
+/* Thin determinate progress track. */
+.track {
+  height: 4px;
+  border-radius: var(--pill);
+  background: var(--line-strong);
+  overflow: hidden;
+}
+.track > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--slow) var(--ease);
 }
 
 /* ============================================================
@@ -1234,18 +1357,18 @@ ul {
 .row {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: var(--s2);
 }
 .row-t {
   display: flex;
   align-items: flex-start;
-  gap: var(--s3);
+  gap: var(--s2);
 }
 .between {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s3);
+  gap: var(--s2);
 }
 .col {
   display: flex;
@@ -1274,16 +1397,16 @@ ul {
   gap: var(--s5);
 }
 .mt2 {
-  margin-top: var(--s2);
+  margin-top: var(--s1);
 }
 .mt3 {
-  margin-top: var(--s3);
+  margin-top: var(--s2);
 }
 .mt4 {
-  margin-top: var(--s4);
+  margin-top: var(--s3);
 }
 .mt5 {
-  margin-top: var(--s5);
+  margin-top: var(--s4);
 }
 .mt6 {
   margin-top: var(--s6);
