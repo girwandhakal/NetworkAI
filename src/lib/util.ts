@@ -107,9 +107,9 @@ export function isEmail(s?: string): boolean {
 
 export const STATUS_STYLE: Record<Status, string> = {
   'Needs follow-up': 'chip-warn',
-  'Draft ready': 'chip-mauve',
+  'Draft ready': 'chip-accent',
   'Waiting for response': 'chip',
-  Replied: 'chip-celadon',
+  Replied: 'chip-good',
   'No action needed': 'chip',
 }
 

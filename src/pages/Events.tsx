@@ -129,7 +129,7 @@ export function Events() {
                     <div className="t-title clamp-2">{ev.name}</div>
                     <div className="t-sm faint mt2">
                       {formatDate(ev.date)}
-                      {rel && <span className="mauve"> · {rel}</span>}
+                      {rel && <span className="accent"> · {rel}</span>}
                       {ev.location && ` · ${ev.location}`}
                     </div>
                   </div>
@@ -138,7 +138,7 @@ export function Events() {
 
                 <div className="row gap2 wrap mt4">
                   <span className="chip">{pluralize(contacts.length || ev.contactCount || 0, 'contact')}</span>
-                  {ready > 0 && <span className="chip chip-mauve">{ready} drafted</span>}
+                  {ready > 0 && <span className="chip chip-accent">{ready} drafted</span>}
                   {todo > 0 && <span className="chip chip-warn">{todo} to send</span>}
                 </div>
               </Link>

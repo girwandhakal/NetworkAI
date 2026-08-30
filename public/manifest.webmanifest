@@ -3,7 +3,7 @@
   "short_name": "Network.Ai",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#d9dbdf",
+  "theme_color": "#d9dbdf",
   "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

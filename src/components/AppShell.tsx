@@ -24,26 +24,15 @@ export function AppShell() {
   return (
     <div className="shell">
       {DEMO && (
-        <div style={{ padding: '10px var(--s5) 0' }}>
-          <div
-            className="row gap2"
-            style={{
-              background: 'var(--celadon-dim)',
-              border: '1px solid var(--celadon-line)',
-              borderRadius: 'var(--r2)',
-              padding: 'var(--s2) var(--s4)',
-              fontFamily: 'var(--f-small)',
-              fontSize: 12.5,
-              color: 'var(--celadon-ink)',
-            }}
-          >
-            <span className="dot" style={{ background: 'var(--celadon-ink)' }} />
+        <div style={{ padding: 'var(--s3) var(--s5) 0' }}>
+          <div className="notice">
+            <span className="dot" style={{ background: 'var(--primary-2)' }} />
             <span className="grow">Demo data</span>
-            <button className="btn-bare" style={{ padding: 0, minHeight: 0, color: 'inherit', fontSize: 12 }} onClick={resetDemo}>
+            <button className="btn-bare" style={{ padding: 0, minHeight: 0, fontSize: 13 }} onClick={resetDemo}>
               Reset
             </button>
-            <span style={{ opacity: 0.4 }}>·</span>
-            <button className="btn-bare" style={{ padding: 0, minHeight: 0, color: 'inherit', fontSize: 12 }} onClick={exitDemo}>
+            <span className="faint">·</span>
+            <button className="btn-bare" style={{ padding: 0, minHeight: 0, fontSize: 13 }} onClick={exitDemo}>
               Exit
             </button>
           </div>
@@ -51,7 +40,7 @@ export function AppShell() {
       )}
 
       {(!online || queued > 0) && (
-        <div style={{ padding: '10px var(--s5) 0' }}>
+        <div style={{ padding: 'var(--s3) var(--s5) 0' }}>
           <div className="offline-bar row gap2">
             <span className={processing ? 'dot dot-work' : 'dot'} />
             <span className="grow">

@@ -173,8 +173,8 @@ export function ResumeUpload({
         className="card card-tap center"
         style={{
           borderStyle: 'dashed',
-          borderColor: drag ? 'var(--mauve)' : undefined,
-          background: drag ? 'var(--mauve-dim)' : undefined,
+          borderColor: drag ? 'var(--accent)' : undefined,
+          background: drag ? 'var(--accent-dim)' : undefined,
           padding: 'var(--s6) var(--s5)',
         }}
         disabled={busy}
