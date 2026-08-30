@@ -67,16 +67,9 @@ export function Onboarding() {
       <header className="topbar">
         <div className="row gap2" style={{ marginBottom: 'var(--s5)' }}>
           {STEPS.map((s, i) => (
-            <div
-              key={s}
-              className="grow"
-              style={{
-                height: 2,
-                borderRadius: 99,
-                background: i <= step ? 'var(--mauve)' : 'var(--line)',
-                transition: 'background .25s',
-              }}
-            />
+            <div key={s} className="track grow">
+              <i style={{ width: i <= step ? '100%' : '0%' }} />
+            </div>
           ))}
         </div>
         <h1 className="t-display">
@@ -91,7 +84,7 @@ export function Onboarding() {
           {hasResume ? (
             <div className="card">
               <div className="row gap3">
-                <span className="celadon">
+                <span className="good">
                   <Icon name="check" size={18} />
                 </span>
                 <div className="grow">
@@ -128,8 +121,8 @@ export function Onboarding() {
                 key={t}
                 className="card card-tap row gap3"
                 style={{
-                  borderColor: form.defaultTone === t ? 'var(--mauve)' : undefined,
-                  background: form.defaultTone === t ? 'var(--mauve-dim)' : undefined,
+                  borderColor: form.defaultTone === t ? 'var(--accent)' : undefined,
+                  background: form.defaultTone === t ? 'var(--accent-dim)' : undefined,
                 }}
                 onClick={() => set({ defaultTone: t as Tone })}
               >

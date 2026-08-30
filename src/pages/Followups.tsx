@@ -178,12 +178,12 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
   return (
     <>
       {info && !mailReady && (
-        <div className="card row-t gap3" style={{ marginBottom: 'var(--s4)', borderColor: 'var(--mauve-line)', background: 'var(--mauve-dim)' }}>
-          <span className="mauve" style={{ paddingTop: 2 }}><Icon name="alert" size={15} /></span>
+        <div className="panel-ai row-t gap3" style={{ marginBottom: 'var(--s4)' }}>
+          <span className="accent" style={{ paddingTop: 2 }}><Icon name="alert" size={15} /></span>
           <div className="grow">
-            <div className="t-section mauve">Sending not set up</div>
+            <div className="t-section accent">Sending not set up</div>
             <p className="t-sm muted mt2">
-              Add <span className="mauve">RESEND_API_KEY</span> and <span className="mauve">MAIL_FROM</span> to <span className="mauve">.env</span>, then restart.
+              Add <span className="accent">RESEND_API_KEY</span> and <span className="accent">MAIL_FROM</span> to <span className="accent">.env</span>, then restart.
             </p>
           </div>
         </div>
@@ -214,7 +214,7 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
           const on = picked.has(c.id)
           const canPick = isEmail(c.email) && !c.sentAt && mailReady
           return (
-            <div key={`${c.eventId}-${c.id}`} className="card" style={{ borderColor: on ? 'var(--celadon-line)' : undefined }}>
+            <div key={`${c.eventId}-${c.id}`} className="card" style={{ borderColor: on ? 'var(--good-line)' : undefined }}>
               <div className="row-t gap3">
                 {canPick ? (
                   <button onClick={() => toggle(c.id)} aria-label={`Select ${displayName(c)}`} style={{ paddingTop: 2 }}>
@@ -228,7 +228,7 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
                     style={{
                       width: 21,
                       height: 21,
-                      borderRadius: 6,
+                      borderRadius: 'var(--r3)',
                       background: 'var(--surface-2)',
                       border: '1px solid var(--line)',
                       color: 'var(--ink-4)',
@@ -249,7 +249,7 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
                     <Link to={`/e/${c.eventId}/c/${c.id}`} className="t-section clamp-1" style={{ color: 'var(--ink)' }}>
                       {displayName(c)}
                     </Link>
-                    {c.priority === 'High' && <span className="chip chip-mauve" style={{ flex: 'none' }}>High</span>}
+                    {c.priority === 'High' && <span className="chip chip-accent" style={{ flex: 'none' }}>High</span>}
                   </div>
 
                   <div className="t-sm faint clamp-1" style={{ marginTop: 1 }}>
@@ -258,13 +258,13 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
                   </div>
 
                   <button className="t-sm mt3 clamp-2" style={{ textAlign: 'left', color: 'var(--ink-2)' }} onClick={() => setPreview(c)}>
-                    <span className="mauve">{c.emailSubject || 'No subject'}</span> — {c.emailDraft?.replace(/\s+/g, ' ').slice(0, 130)}
+                    <span className="accent">{c.emailSubject || 'No subject'}</span> — {c.emailDraft?.replace(/\s+/g, ' ').slice(0, 130)}
                   </button>
 
                   <div className="row gap2 wrap mt3">
                     <span className="chip">{c.eventName}</span>
                     {c.emailTone && <span className="chip">{c.emailTone}</span>}
-                    {c.sentAt && <span className="chip chip-celadon">Sent {timeAgo(c.sentAt)}</span>}
+                    {c.sentAt && <span className="chip chip-good">Sent {timeAgo(c.sentAt)}</span>}
                     {!isEmail(c.email) && <span className="chip chip-warn">Needs an address</span>}
                   </div>
                 </div>
@@ -285,7 +285,7 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
             <div className="panel-ai">
               <div className="t-label">Subject</div>
               <p className="t-body mt2">{preview.emailSubject || '—'}</p>
-              <hr className="hr" style={{ background: 'var(--mauve-line)', opacity: 0.4 }} />
+              <hr className="hr" style={{ background: 'var(--accent-line)', opacity: 0.4 }} />
               <p className="t-body pre-wrap">{preview.emailDraft}</p>
             </div>
             <div className="row gap2 mt5">
@@ -311,7 +311,7 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
         <div className="col gap2">
           {report?.map((r) => (
             <div key={r.id} className="row-t gap3 card" style={{ padding: 'var(--s3) var(--s4)' }}>
-              <span style={{ color: r.ok ? 'var(--celadon)' : 'var(--danger)', paddingTop: 2 }}>
+              <span style={{ color: r.ok ? 'var(--good)' : 'var(--danger)', paddingTop: 2 }}>
                 <Icon name={r.ok ? 'check' : 'alert'} size={14} />
               </span>
               <div className="grow" style={{ minWidth: 0 }}>
@@ -379,15 +379,8 @@ function LinkedInList({ contacts }: { contacts: ContactWithEvent[] }) {
           <div className="t-sm muted">
             {done} of {pluralize(total, 'note')} added
           </div>
-          <div style={{ height: 3, borderRadius: 99, background: 'var(--line)', marginTop: 6, overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${total ? (done / total) * 100 : 0}%`,
-                background: 'var(--celadon-ink)',
-                transition: 'width .3s var(--ease)',
-              }}
-            />
+          <div className="track" style={{ marginTop: 6 }}>
+            <i style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
           </div>
         </div>
         <button className="btn btn-bare btn-sm" onClick={() => setHideDone(!hideDone)}>
@@ -431,9 +424,9 @@ function LinkedInList({ contacts }: { contacts: ContactWithEvent[] }) {
                   onClick={() => mark(c, !c.linkedinAdded)}
                   aria-label={c.linkedinAdded ? 'Mark as not added' : 'Mark as added'}
                   style={{
-                    background: c.linkedinAdded ? 'var(--celadon)' : undefined,
-                    color: c.linkedinAdded ? 'var(--black)' : undefined,
-                    borderColor: c.linkedinAdded ? 'var(--celadon)' : undefined,
+                    background: c.linkedinAdded ? 'var(--night)' : undefined,
+                    color: c.linkedinAdded ? 'var(--white)' : undefined,
+                    borderColor: c.linkedinAdded ? 'var(--night)' : undefined,
                   }}
                 >
                   <Icon name="check" size={15} strokeWidth={2.4} />

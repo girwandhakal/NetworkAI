@@ -80,7 +80,7 @@ export function EventDetail() {
       {list.length > 0 && (
         <div className="row gap2" style={{ marginBottom: 'var(--s4)' }}>
           <Link to={`/followups?event=${eventId}`} className="card card-tap grow row gap3" style={{ padding: 'var(--s3) var(--s4)' }}>
-            <span className="mauve"><Icon name="mail" size={17} /></span>
+            <span className="accent"><Icon name="mail" size={17} /></span>
             <span className="grow col">
               <span className="t-section">Follow-ups</span>
               <span className="t-sm faint" style={{ marginTop: 1 }}>

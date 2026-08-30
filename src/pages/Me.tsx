@@ -45,7 +45,7 @@ export function Me() {
         <SectionLabel>Resume</SectionLabel>
         {profile?.resumeText?.trim() ? (
           <div className="row gap3">
-            <span className="celadon">
+            <span className="good">
               <Icon name="resume" size={18} />
             </span>
             <div className="grow" style={{ minWidth: 0 }}>
@@ -161,7 +161,7 @@ function Row({ label, value, good, help }: { label: string; value: string; good?
       <div className="between gap3">
         <span className="t-sm muted">{label}</span>
         <span className="row gap2" style={{ minWidth: 0 }}>
-          <span className="dot" style={{ background: good ? 'var(--celadon-ink)' : 'var(--danger)' }} />
+          <span className="dot" style={{ background: good ? 'var(--good-ink)' : 'var(--danger)' }} />
           <span className="t-sm clamp-1" style={{ color: good ? 'var(--ink)' : 'var(--danger)' }}>
             {value}
           </span>

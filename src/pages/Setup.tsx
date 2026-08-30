@@ -27,7 +27,7 @@ export function Setup() {
         <h1 className="t-display">
           Two keys and
           <br />
-          <span className="mauve italic">you are running.</span>
+          <span className="accent">you are running.</span>
         </h1>
         <p className="t-body muted mt3">Your own Firebase project, your own OpenAI key.</p>
       </header>
@@ -40,7 +40,7 @@ export function Setup() {
           <Bullet>Authentication → enable Email/Password</Bullet>
           <Bullet>Firestore Database → create</Bullet>
           <Bullet>
-            Firestore → Rules → paste <span className="mauve">firestore.rules</span> → Publish
+            Firestore → Rules → paste <span className="accent">firestore.rules</span> → Publish
           </Bullet>
           <Bullet>Project settings → Your apps → Web app → copy the config</Bullet>
         </ul>
@@ -54,7 +54,7 @@ export function Setup() {
 
       <Step n={3} title="Fill in .env" done={missingFirebaseKeys.length === 0 && Boolean(info?.ai.configured)}>
         <p className="t-sm muted">
-          Copy <span className="mauve">.env.example</span> to <span className="mauve">.env</span> and fill in:
+          Copy <span className="accent">.env.example</span> to <span className="accent">.env</span> and fill in:
         </p>
         <div className="card mt3" style={{ background: 'var(--surface-2)' }}>
           <p className="t-sm pre-wrap break" style={{ color: 'var(--ink-2)' }}>
@@ -92,13 +92,13 @@ export function Setup() {
         </button>
       </div>
 
-      <div className="card mt5" style={{ borderColor: 'var(--celadon-line)', background: 'var(--celadon-dim)' }}>
+      <div className="card mt5" style={{ borderColor: 'var(--good-line)', background: 'var(--good-dim)' }}>
         <div className="row gap3">
-          <span className="celadon" style={{ flex: 'none' }}>
+          <span className="good" style={{ flex: 'none' }}>
             <Icon name="spark" size={17} />
           </span>
           <div className="grow">
-            <div className="t-section celadon">Just looking?</div>
+            <div className="t-section good">Just looking?</div>
             <p className="t-sm muted mt2">
               Open the app with sample data. No Firebase, nothing saved off this browser.
             </p>
@@ -121,16 +121,16 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
         <span
           className="t-num"
           style={{
-            width: 24,
-            height: 24,
+            width: 26,
+            height: 26,
             borderRadius: '50%',
             flex: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 12,
-            background: done ? 'var(--celadon)' : 'var(--surface-3)',
-            color: done ? 'var(--black)' : 'var(--ink-3)',
+            fontSize: 13,
+            background: done ? 'var(--night)' : 'var(--surface-3)',
+            color: done ? 'var(--white)' : 'var(--ink-3)',
           }}
         >
           {done ? <Icon name="check" size={13} strokeWidth={2.6} /> : n}
@@ -145,7 +145,7 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="row-t gap2 t-sm" style={{ color: 'var(--ink-2)' }}>
-      <span className="mauve" style={{ lineHeight: 1.5 }}>·</span>
+      <span className="accent" style={{ lineHeight: 1.5 }}>·</span>
       <span className="grow">{children}</span>
     </li>
   )
@@ -156,7 +156,7 @@ function Check({ ok, label, detail }: { ok: boolean | null; label: string; detai
     <div className="between gap3">
       <span className="t-sm muted" style={{ flex: 'none' }}>{label}</span>
       <span className="row gap2" style={{ minWidth: 0 }}>
-        <span className="dot" style={{ background: ok === null ? 'var(--ink-4)' : ok ? 'var(--celadon-ink)' : 'var(--danger)' }} />
+        <span className="dot" style={{ background: ok === null ? 'var(--ink-4)' : ok ? 'var(--good-ink)' : 'var(--danger)' }} />
         <span className="t-sm clamp-1" style={{ color: ok ? 'var(--ink)' : 'var(--ink-3)' }}>{detail}</span>
       </span>
     </div>

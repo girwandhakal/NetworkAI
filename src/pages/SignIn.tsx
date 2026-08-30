@@ -42,10 +42,10 @@ export function SignIn() {
       <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <Mark />
 
-        <h1 className="t-display mt6" style={{ fontSize: 34 }}>
+        <h1 className="t-display mt6">
           Never forget
           <br />
-          <span className="mauve italic">who you met.</span>
+          <span className="accent">who you met.</span>
         </h1>
 
         <form className="col gap4 mt6" onSubmit={submit}>
@@ -131,7 +131,7 @@ export function SignIn() {
           {mode === 'in' && (
             <>
               <button className="btn btn-bare" onClick={() => setMode('up')}>
-                No account? <span className="mauve">&nbsp;Create one</span>
+                No account? <span className="accent">&nbsp;Create one</span>
               </button>
               <button className="btn btn-bare t-sm faint" onClick={() => setMode('reset')}>
                 Forgot password?
@@ -140,7 +140,7 @@ export function SignIn() {
           )}
           {mode === 'up' && (
             <button className="btn btn-bare" onClick={() => setMode('in')}>
-              Have an account? <span className="mauve">&nbsp;Sign in</span>
+              Have an account? <span className="accent">&nbsp;Sign in</span>
             </button>
           )}
           {mode === 'reset' && (
@@ -158,11 +158,11 @@ function Mark() {
   return (
     <div className="row gap3">
       <svg width="38" height="38" viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="20" cy="20" r="6" fill="#ca7df9" />
-        <circle cx="45" cy="17" r="4.5" fill="#aef6c7" />
-        <circle cx="43" cy="45" r="7" fill="#aef6c7" />
-        <circle cx="17" cy="44" r="4" fill="#ca7df9" />
-        <g stroke="#040403" strokeWidth="2" strokeLinecap="round" opacity=".45">
+        <circle cx="20" cy="20" r="6" fill="#ff5ec4" />
+        <circle cx="45" cy="17" r="4.5" fill="#9d9db8" />
+        <circle cx="43" cy="45" r="7" fill="#ff5ec4" />
+        <circle cx="17" cy="44" r="4" fill="#9d9db8" />
+        <g stroke="#0b0d2a" strokeWidth="2" strokeLinecap="round" opacity=".45">
           <path d="M20 20 45 17" />
           <path d="M45 17 43 45" />
           <path d="M43 45 17 44" />
@@ -171,7 +171,7 @@ function Mark() {
         </g>
       </svg>
       <span className="t-title">
-        Network<span className="mauve">.Ai</span>
+        Network<span className="accent">.Ai</span>
       </span>
     </div>
   )

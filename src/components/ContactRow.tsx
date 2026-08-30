@@ -19,14 +19,14 @@ export function ContactRow({ c, eventId, showEvent }: { c: Contact; eventId: str
           width: 34,
           height: 34,
           flex: 'none',
-          borderRadius: 10,
-          background: c.priority === 'High' ? 'var(--mauve-dim)' : 'var(--surface-2)',
-          border: `1px solid ${c.priority === 'High' ? 'var(--mauve-line)' : 'var(--line)'}`,
-          color: c.priority === 'High' ? 'var(--mauve)' : 'var(--ink-3)',
+          borderRadius: 'var(--r4)',
+          background: c.priority === 'High' ? 'var(--accent-dim)' : 'var(--surface-2)',
+          border: `1px solid ${c.priority === 'High' ? 'var(--accent-line)' : 'var(--line)'}`,
+          color: c.priority === 'High' ? 'var(--accent-ink)' : 'var(--ink-3)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 12.5,
+          fontSize: 13,
           letterSpacing: '.02em',
         }}
       >
@@ -44,7 +44,7 @@ export function ContactRow({ c, eventId, showEvent }: { c: Contact; eventId: str
         {line && <span className="t-sm muted clamp-1" style={{ marginTop: 1 }}>{line}</span>}
 
         {c.aiPending ? (
-          <span className="t-sm mauve clamp-1 mt2">Working out what you said…</span>
+          <span className="t-sm accent clamp-1 mt2">Working out what you said…</span>
         ) : (
           blurb && <span className="t-sm faint clamp-2 mt2">{blurb}</span>
         )}
@@ -75,7 +75,7 @@ export function ContactRow({ c, eventId, showEvent }: { c: Contact; eventId: str
             </span>
           )}
           {c.sentAt && (
-            <span className="chip chip-celadon">
+            <span className="chip chip-good">
               <Icon name="check" size={10} strokeWidth={2.4} />
               Sent
             </span>
