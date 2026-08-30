@@ -180,9 +180,14 @@ export function mergeResume(current: Partial<UserProfile>, r: ParsedResume): Par
     experiences: fresh(r.experiences, current.experiences),
     resumeText: r.resumeText,
     resumeFileName: r.resumeFileName,
-    resumeUrl: r.resumeUrl,
-    resumeStoragePath: r.resumeStoragePath,
-    resumeMimeType: r.resumeMimeType,
+    // Unlike the fields above, these three have no text to fall back to if
+    // empty — they come only from a successful file upload. If parsing
+    // succeeded but the upload itself failed (flaky venue Wi-Fi), r's copies
+    // are undefined; keep whatever file was already on the profile instead
+    // of overwriting a good reference with nothing.
+    resumeUrl: r.resumeUrl || current.resumeUrl,
+    resumeStoragePath: r.resumeStoragePath || current.resumeStoragePath,
+    resumeMimeType: r.resumeMimeType || current.resumeMimeType,
   }
 }
 

@@ -97,8 +97,16 @@ export async function readBlob(storagePath, token) {
   // together in the wrong order.
   const refs = Array.from({ length: chunks }, (_, i) => db.doc(`users/${uid}/blobs/${key}/parts/${i}`))
   const snaps = refs.length ? await db.getAll(...refs) : []
-  const b64 = snaps.map((s) => (s.exists ? String(s.data().b64 || '') : '')).join('')
-  if (chunks && !b64) throw notFound()
+  // A chunk that came back missing would silently corrupt the file (the
+  // client's fetchContextBase64 in src/lib/storage.ts treats the same case
+  // as a hard failure) — check each one rather than only the joined whole.
+  const b64 = snaps
+    .map((s) => {
+      const part = s.exists ? String(s.data().b64 || '') : ''
+      if (!part) throw notFound()
+      return part
+    })
+    .join('')
 
   return { mime: meta.mime || 'application/octet-stream', bytes: Buffer.from(b64, 'base64') }
 }
