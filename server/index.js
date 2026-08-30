@@ -17,7 +17,8 @@ import {
   followupSystem,
   memoryBlock,
 } from './prompts.js'
-import { sendBatch, mailStatus, findResumeFile } from './mailer.js'
+import { sendBatch, mailStatus } from './mailer.js'
+import { isAdminConfigured, readBlob } from './firebaseAdmin.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -33,7 +34,7 @@ app.use(express.json({ limit: '30mb' }))
 
 const ok = (v) => typeof v === 'string' && v.trim().length > 0
 
-function inlineData(data, mimeType, fallback) {
+function inlineData(data, mimeType, fallback, fileName) {
   const raw = String(data || '')
   // Accept both bare base64 and full data: URLs.
   const m = raw.match(/^data:([^;]+);base64,(.*)$/)
@@ -41,6 +42,11 @@ function inlineData(data, mimeType, fallback) {
     inlineData: {
       mimeType: m ? m[1] : mimeType || fallback,
       data: m ? m[2] : raw,
+      // Word docs etc. go to OpenAI as a generic file part — it identifies
+      // the format from the filename's extension, so the real name (not a
+      // placeholder) needs to travel with the bytes or parsing silently
+      // produces nothing useful.
+      fileName: ok(fileName) ? fileName : undefined,
     },
   }
 }
@@ -77,6 +83,7 @@ function bad(message) {
   return e
 }
 
+
 /* ── GET /api/health ─────────────────────────────────────── */
 
 app.get('/api/health', (_req, res) => {
@@ -99,7 +106,7 @@ app.post(
     const parts = []
     if (ok(data)) {
       parts.push({ text: `Transcribe and structure this resume${ok(fileName) ? ` (file: ${fileName})` : ''}.` })
-      parts.push(inlineData(data, mimeType, 'application/pdf'))
+      parts.push(inlineData(data, mimeType, 'application/pdf', fileName))
     } else {
       parts.push({ text: `Structure this resume text:\n\n"""\n${text.slice(0, 40000)}\n"""` })
     }
@@ -122,6 +129,38 @@ app.post(
       resumeText: clean(out.resumeText) || clean(text),
       resumeFileName: clean(fileName),
     })
+  }),
+)
+
+/* ── GET /api/blob ───────────────────────────────────────── */
+
+// Photos, voice notes and the resume are stored in Firestore rather than
+// Cloud Storage (see src/lib/storage.ts), which means there is no public
+// download URL for them. This route is that URL: it reassembles a file from
+// its chunk documents and serves it, so pdf.js, an <img>, and a mail
+// attachment can all treat it like any other file on the web.
+//
+// Unauthenticated by design, exactly like a Cloud Storage download link —
+// the per-file token minted at upload time is the credential, and readBlob
+// refuses anything else.
+app.get(
+  '/api/blob',
+  route(async (req, res) => {
+    if (!isAdminConfigured()) {
+      throw Object.assign(
+        new Error('Stored files cannot be served: add FIREBASE_SERVICE_ACCOUNT_KEY to .env (see README).'),
+        { status: 503 },
+      )
+    }
+    const storagePath = String(req.query.path || '')
+    const token = String(req.query.token || '')
+    if (!ok(storagePath) || !ok(token)) throw bad('Missing path or token.')
+
+    const { mime, bytes } = await readBlob(storagePath, token)
+    res.type(mime)
+    // Private: this is one user's own file, and the token is in the URL.
+    res.set('Cache-Control', 'private, max-age=300')
+    res.send(bytes)
   }),
 )
 
@@ -235,23 +274,13 @@ app.post(
         body: clean(m.body),
         replyTo: clean(m.replyTo),
         attachResume: Boolean(m.attachResume),
+        resumeUrl: clean(m.resumeUrl),
+        resumeFileName: clean(m.resumeFileName) || 'resume.pdf',
       })),
     )
     res.json({ results, sent: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length })
   }),
 )
-
-/* ── GET /resume.pdf ─────────────────────────────────────── */
-
-// Served straight out of docs/ so that folder stays the single source of
-// truth — drop a new PDF in and it is live, no copying or rebuild.
-app.get('/resume.pdf', (_req, res) => {
-  const file = findResumeFile()
-  if (!file) return res.status(404).json({ error: 'No PDF found in docs/.' })
-  res.type('application/pdf')
-  res.setHeader('Content-Disposition', 'inline; filename="resume.pdf"')
-  res.sendFile(file)
-})
 
 /* ── PDF.js support assets ───────────────────────────────── */
 

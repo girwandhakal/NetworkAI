@@ -15,3 +15,12 @@ storage.rules
 
 # Personal resume PDF (PII)
 docs/Girwan_Dhakal_Resume.pdf
+
+# Firebase admin service account key — grants full project access, must
+# never be committed. FIREBASE_SERVICE_ACCOUNT_KEY in .env should point
+# outside the repo, but this is a safety net if one lands here anyway.
+*serviceAccountKey*.json
+*firebase-adminsdk*.json
+
+
+env/

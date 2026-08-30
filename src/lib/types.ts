@@ -29,6 +29,8 @@ export const TONE_BLURB: Record<Tone, string> = {
 export const DEFAULT_TONE: Tone = 'Business casual'
 
 export interface UserProfile {
+  // Entirely resume-derived — there is no form for any of this. Re-uploading
+  // a resume (onboarding, or Me -> Resume) is the only way to change it.
   name: string
   school: string
   major: string
@@ -38,6 +40,12 @@ export interface UserProfile {
   emailPreference?: string
   resumeText?: string
   resumeFileName?: string
+  /** Download URL for the actual uploaded file — used both to view it and,
+   *  server-side, to attach it to a follow-up email. Absent for a pasted
+   *  (as opposed to uploaded) resume, since there's no file to attach then. */
+  resumeUrl?: string
+  resumeStoragePath?: string
+  resumeMimeType?: string
   defaultTone?: Tone
   onboarded?: boolean
   email?: string
@@ -151,6 +159,36 @@ export interface ParsedResume {
   experiences: string
   resumeText: string
   resumeFileName: string
+  /** Set by ResumeUpload after it stores the actual file — absent for pasted text. */
+  resumeUrl?: string
+  resumeStoragePath?: string
+  resumeMimeType?: string
+}
+
+/** The one place a fresh resume parse turns into a profile patch — reused by
+ *  onboarding and by the Me -> Resume re-upload flow so both behave the
+ *  same way: the new resume wins, but an old value survives a field the new
+ *  one happens not to mention, rather than getting blanked out. */
+export function mergeResume(current: Partial<UserProfile>, r: ParsedResume): Partial<UserProfile> {
+  const fresh = (incoming: string, existing: string | undefined) => (incoming && incoming.trim()) || existing || ''
+  return {
+    name: fresh(r.name, current.name),
+    school: fresh(r.school, current.school),
+    major: fresh(r.major, current.major),
+    gradYear: fresh(r.gradYear, current.gradYear),
+    targetRoles: fresh(r.targetRoles, current.targetRoles),
+    experiences: fresh(r.experiences, current.experiences),
+    resumeText: r.resumeText,
+    resumeFileName: r.resumeFileName,
+    // Unlike the fields above, these three have no text to fall back to if
+    // empty — they come only from a successful file upload. If parsing
+    // succeeded but the upload itself failed (flaky venue Wi-Fi), r's copies
+    // are undefined; keep whatever file was already on the profile instead
+    // of overwriting a good reference with nothing.
+    resumeUrl: r.resumeUrl || current.resumeUrl,
+    resumeStoragePath: r.resumeStoragePath || current.resumeStoragePath,
+    resumeMimeType: r.resumeMimeType || current.resumeMimeType,
+  }
 }
 
 export interface SendResult {

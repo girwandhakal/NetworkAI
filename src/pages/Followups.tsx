@@ -131,7 +131,9 @@ function EmailQueue({ contacts }: { contacts: ContactWithEvent[] }) {
           subject: c.emailSubject || `Following up from ${c.eventName}`,
           body: c.emailDraft || '',
           replyTo: profile?.email || user.email || '',
-          attachResume: Boolean(c.attachResume),
+          attachResume: Boolean(c.attachResume && profile?.resumeUrl),
+          resumeUrl: profile?.resumeUrl,
+          resumeFileName: profile?.resumeFileName,
         })),
       )
       setReport(results)

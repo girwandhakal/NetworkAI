@@ -63,6 +63,14 @@ async function transcribeAudio(base64, mimeType) {
   return (json?.text || '').trim()
 }
 
+const EXT_BY_MIME = {
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'text/plain': '.txt',
+  'text/markdown': '.md',
+}
+const extFor = (mime) => EXT_BY_MIME[mime] || ''
+
 /* ── Gemini-shaped parts -> Responses API content ───────────────────────── */
 
 async function toContent(parts) {
@@ -78,7 +86,7 @@ async function toContent(parts) {
     if (mime.startsWith('image/')) {
       content.push({ type: 'input_image', image_url: `data:${mime};base64,${inline.data}` })
     } else if (mime === 'application/pdf') {
-      content.push({ type: 'input_file', filename: 'document.pdf', file_data: `data:${mime};base64,${inline.data}` })
+      content.push({ type: 'input_file', filename: inline.fileName || 'document.pdf', file_data: `data:${mime};base64,${inline.data}` })
     } else if (mime.startsWith('audio/')) {
       const transcript = await transcribeAudio(inline.data, mime)
       content.push({
@@ -86,7 +94,11 @@ async function toContent(parts) {
         text: transcript ? `[Transcribed audio]\n${transcript}` : '[An audio recording was captured here but nothing intelligible was transcribed.]',
       })
     } else {
-      content.push({ type: 'input_file', filename: 'attachment', file_data: `data:${mime || 'application/octet-stream'};base64,${inline.data}` })
+      // OpenAI identifies a generic file's format from the filename's
+      // extension, not the mime type — a placeholder name with no
+      // extension (or the wrong one) makes it silently fail to parse the
+      // document, so give it a real name for the format it actually is.
+      content.push({ type: 'input_file', filename: inline.fileName || `attachment${extFor(mime)}`, file_data: `data:${mime || 'application/octet-stream'};base64,${inline.data}` })
     }
   }
   return content

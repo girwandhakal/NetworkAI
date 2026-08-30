@@ -107,7 +107,17 @@ export function generateFollowup(input: {
 }
 
 export function sendEmails(
-  messages: { id: string; to: string; subject: string; body: string; replyTo?: string; attachResume?: boolean }[],
+  messages: {
+    id: string
+    to: string
+    subject: string
+    body: string
+    replyTo?: string
+    attachResume?: boolean
+    /** The uploaded resume to fetch and attach — server-side, no bytes travel through here. */
+    resumeUrl?: string
+    resumeFileName?: string
+  }[],
 ) {
   // Never falls through to the real endpoint: a demo must not put mail in a
   // stranger's inbox, even if sending happens to be configured.

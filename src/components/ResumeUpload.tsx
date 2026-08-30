@@ -1,12 +1,35 @@
 import { useRef, useState } from 'react'
 import { Icon } from './Icon'
+import { useAuth } from '../state/Auth'
 import { useToast } from '../state/Toast'
 import { parseResume } from '../lib/api'
 import { blobToBase64 } from '../lib/media'
+import { uploadResumeFile } from '../lib/storage'
 import type { ParsedResume } from '../lib/types'
 
 const MAX_MB = 12
 const ACCEPT = '.pdf,.txt,.md,.doc,.docx,application/pdf,text/plain'
+
+// Some browsers/OSes (notably files picked on iOS, or dragged from sources
+// with no OS-level mime association) hand back an empty File.type even for
+// a plain PDF. That value becomes resumeMimeType, and the Resume tab uses
+// it — not the file extension — to decide whether to render the PDF
+// preview, so a blank type there silently kills the preview even though
+// OCR (which already falls back to 'application/pdf') works fine. Fall
+// back to the extension so the two stay in agreement.
+const EXT_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain',
+  md: 'text/markdown',
+}
+
+function resolveMimeType(file: File): string {
+  if (file.type) return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  return EXT_MIME[ext] || 'application/octet-stream'
+}
 
 /**
  * Resume in, structured profile out. Used by onboarding and by the Resume tab,
@@ -21,6 +44,7 @@ export function ResumeUpload({
   compact?: boolean
   label?: string
 }) {
+  const { user } = useAuth()
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -37,15 +61,35 @@ export function ResumeUpload({
     setBusy(true)
     try {
       const isText = /^text\//.test(file.type) || /\.(txt|md)$/i.test(file.name)
+      // Same mime type feeds both OCR and the stored resumeMimeType that
+      // gates the PDF preview — they must not disagree with each other.
+      const mimeType = resolveMimeType(file)
       const parsed = isText
         ? await parseResume({ text: await file.text(), fileName: file.name })
         : await parseResume({
             data: await blobToBase64(file),
-            mimeType: file.type || 'application/pdf',
+            mimeType,
             fileName: file.name,
           })
-      await onParsed({ ...parsed, resumeFileName: parsed.resumeFileName || file.name })
-      toast.ok('Resume saved.')
+      // Keep the actual file, not just its extracted text — it's what gets
+      // viewed back and what "append resume" attaches to an email.
+      let uploadFailed = false
+      const uploaded = user
+        ? await uploadResumeFile(user.uid, file, mimeType).catch(() => {
+            uploadFailed = true
+            return null
+          })
+        : null
+      await onParsed({
+        ...parsed,
+        resumeFileName: parsed.resumeFileName || file.name,
+        ...(uploaded ? { resumeUrl: uploaded.url, resumeStoragePath: uploaded.storagePath, resumeMimeType: mimeType } : {}),
+      })
+      // The parsed fields (name, school, experience, ...) still saved even
+      // when the file itself didn't upload — say so, rather than a blanket
+      // "saved" that hides why the Resume tab has no preview afterward.
+      if (uploadFailed) toast.err('Resume details saved, but the file itself failed to upload — no preview will be available.')
+      else toast.ok('Resume saved.')
     } catch (e) {
       toast.err(e)
     } finally {
