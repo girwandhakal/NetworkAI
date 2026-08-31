@@ -155,6 +155,8 @@ Event  ("Fall 2026 Tech Career Fair")
 | `npm run dev` | API server + Vite dev server together |
 | `npm run build` | Typecheck, then build to `dist/` |
 | `npm start` | Serve the built app and the API from one process |
+| `npm test` | Run the test suite once |
+| `npm run test:watch` | Run the test suite in watch mode |
 
 ---
 

@@ -376,7 +376,19 @@ ul {
 .page {
   flex: 1;
   padding: 0 var(--s5) calc(var(--nav-h) + var(--safe-b) + 96px);
-  animation: page-in var(--base) var(--ease) both;
+  /* `backwards`, not `both`: with `both`, an animation that only ever
+     declares `transform` in its `from` keyframe leaves the *computed*
+     transform on this element as an explicit identity matrix forever after
+     it finishes, rather than reverting to `none` — and any non-`none`
+     transform on an ancestor, even a no-op one, quietly turns every
+     `position: fixed` modal/sheet inside it (Confirm, Sheet, CaptureSheet)
+     from viewport-relative into relative-to-this-element instead. On a
+     short page that's invisible; on a long scrolled list it pushes the
+     entire dialog off-screen below the fold. `backwards` still applies the
+     entry frame before the animation starts (no flash of unstyled content)
+     but correctly lets `transform` fall back to the real cascade — `none`
+     — once the animation is done. */
+  animation: page-in var(--base) var(--ease) backwards;
 }
 
 .page.no-nav {
@@ -440,7 +452,8 @@ ul {
   transition:
     border-color var(--fast) var(--ease),
     box-shadow var(--base) var(--ease),
-    background var(--fast) var(--ease);
+    background var(--fast) var(--ease),
+    transform var(--slow) var(--ease);
 }
 .card-tap:hover {
   border-color: var(--line-strong);
@@ -449,6 +462,40 @@ ul {
 .card-tap:active {
   background: var(--surface-2);
   box-shadow: var(--shadow-xs);
+}
+/* A live drag (see .swipe-row below) sets `transform` on every pointermove —
+   suspend the transition so the row tracks the finger instead of chasing it. */
+.card-tap.dragging {
+  transition: none;
+}
+
+/* Swipe-to-delete (ContactRow). A long-press on an <a> fights the browser's
+   own touch UI (iOS's link-preview callout, Android's copy/select menu) in
+   ways CSS can't reliably suppress; a horizontal drag doesn't trigger
+   either, which is why every mobile list (Mail, Gmail, Reminders) reveals
+   row actions this way instead. The row is draggable via useSwipeToDelete;
+   this wrapper just clips it so the red action underneath only ever shows
+   through the gap the row's own translateX opens up. */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r4);
+}
+.swipe-row > .card-tap {
+  touch-action: pan-y;
+}
+.swipe-action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .card-flush {

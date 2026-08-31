@@ -1,87 +1,140 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from './Icon'
+import { Confirm } from './Ui'
+import { useAuth } from '../state/Auth'
+import { useToast } from '../state/Toast'
+import { deleteContact } from '../lib/db'
+import { SWIPE_ACTION_WIDTH, useSwipeToDelete } from '../lib/useSwipeToDelete'
+import { useTap } from '../lib/useTap'
 import { displayName, needsCheck, type Contact } from '../lib/types'
 import { initials, STATUS_STYLE, timeAgo } from '../lib/util'
 
 export function ContactRow({ c, eventId, showEvent }: { c: Contact; eventId: string; showEvent?: string }) {
+  const { user } = useAuth()
+  const toast = useToast()
+  const [confirming, setConfirming] = useState(false)
   const name = displayName(c)
   const untitled = !c.name?.trim() && !c.company?.trim()
   const line = [c.title, c.company].filter(Boolean).join(' · ')
   const blurb = c.summary?.topic || c.notes || ''
 
+  const { offset, open, dragging, close, handlers } = useSwipeToDelete()
+  const tapDelete = useTap(() => {
+    close()
+    setConfirming(true)
+  })
+
   return (
-    <Link to={`/e/${eventId}/c/${c.id}`} className="card card-tap row-t gap3">
-      <span className={`rail rail-${c.priority}`} />
+    <>
+      <div className="swipe-row">
+        <button
+          className="swipe-action"
+          style={{ width: SWIPE_ACTION_WIDTH }}
+          tabIndex={open ? 0 : -1}
+          aria-hidden={!open}
+          {...tapDelete}
+        >
+          <Icon name="trash" size={17} />
+          Delete
+        </button>
 
-      <span
-        className="t-num"
-        style={{
-          width: 34,
-          height: 34,
-          flex: 'none',
-          borderRadius: 'var(--r4)',
-          background: c.priority === 'High' ? 'var(--accent-dim)' : 'var(--surface-2)',
-          border: `1px solid ${c.priority === 'High' ? 'var(--accent-line)' : 'var(--line)'}`,
-          color: c.priority === 'High' ? 'var(--accent-ink)' : 'var(--ink-3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 13,
-          letterSpacing: '.02em',
-        }}
-      >
-        {c.aiPending ? <span className="spin" style={{ width: 13, height: 13 }} /> : initials(name)}
-      </span>
+        <Link
+          to={`/e/${eventId}/c/${c.id}`}
+          className={`card card-tap row-t gap3${dragging ? ' dragging' : ''}`}
+          style={{ transform: `translate3d(${offset}px,0,0)` }}
+          {...handlers}
+        >
+          <span className={`rail rail-${c.priority}`} />
 
-      <span className="grow col" style={{ minWidth: 0 }}>
-        <span className="between gap2">
-          <span className={`t-section clamp-1${untitled ? ' italic faint' : ''}`}>{name}</span>
-          <span className="t-sm faint" style={{ flex: 'none', fontSize: 11.5 }}>
-            {timeAgo(c.createdAt)}
+          <span
+            className="t-num"
+            style={{
+              width: 34,
+              height: 34,
+              flex: 'none',
+              borderRadius: 'var(--r4)',
+              background: c.priority === 'High' ? 'var(--accent-dim)' : 'var(--surface-2)',
+              border: `1px solid ${c.priority === 'High' ? 'var(--accent-line)' : 'var(--line)'}`,
+              color: c.priority === 'High' ? 'var(--accent-ink)' : 'var(--ink-3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 13,
+              letterSpacing: '.02em',
+            }}
+          >
+            {c.aiPending ? <span className="spin" style={{ width: 13, height: 13 }} /> : initials(name)}
           </span>
-        </span>
 
-        {line && <span className="t-sm muted clamp-1" style={{ marginTop: 1 }}>{line}</span>}
+          <span className="grow col" style={{ minWidth: 0 }}>
+            <span className="between gap2">
+              <span className={`t-section clamp-1${untitled ? ' italic faint' : ''}`}>{name}</span>
+              <span className="t-sm faint" style={{ flex: 'none', fontSize: 11.5 }}>
+                {timeAgo(c.createdAt)}
+              </span>
+            </span>
 
-        {c.aiPending ? (
-          <span className="t-sm accent clamp-1 mt2">Working out what you said…</span>
-        ) : (
-          blurb && <span className="t-sm faint clamp-2 mt2">{blurb}</span>
-        )}
+            {line && <span className="t-sm muted clamp-1" style={{ marginTop: 1 }}>{line}</span>}
 
-        <span className="row gap2 wrap mt3">
-          <span className={STATUS_STYLE[c.status] || 'chip'}>{c.status}</span>
-          {showEvent && <span className="chip">{showEvent}</span>}
-          {c.captureType === 'voice' && (
-            <span className="chip" title="Captured by voice">
-              <Icon name="mic" size={10} />
+            {c.aiPending ? (
+              <span className="t-sm accent clamp-1 mt2">Working out what you said…</span>
+            ) : (
+              blurb && <span className="t-sm faint clamp-2 mt2">{blurb}</span>
+            )}
+
+            <span className="row gap2 wrap mt3">
+              <span className={STATUS_STYLE[c.status] || 'chip'}>{c.status}</span>
+              {showEvent && <span className="chip">{showEvent}</span>}
+              {c.captureType === 'voice' && (
+                <span className="chip" title="Captured by voice">
+                  <Icon name="mic" size={10} />
+                </span>
+              )}
+              {c.captureType === 'image' && (
+                <span className="chip" title={c.docType || 'Captured from an image'}>
+                  <Icon name="camera" size={10} />
+                  {c.docType && c.docType !== 'Other' ? c.docType : ''}
+                </span>
+              )}
+              {needsCheck(c) && (
+                <span className="chip chip-warn" title="The extraction was unsure — worth a glance">
+                  <Icon name="alert" size={10} />
+                  Check
+                </span>
+              )}
+              {c.aiError && (
+                <span className="chip chip-warn" title={c.aiError}>
+                  Extraction failed
+                </span>
+              )}
+              {c.sentAt && (
+                <span className="chip chip-good">
+                  <Icon name="check" size={10} strokeWidth={2.4} />
+                  Sent
+                </span>
+              )}
             </span>
-          )}
-          {c.captureType === 'image' && (
-            <span className="chip" title={c.docType || 'Captured from an image'}>
-              <Icon name="camera" size={10} />
-              {c.docType && c.docType !== 'Other' ? c.docType : ''}
-            </span>
-          )}
-          {needsCheck(c) && (
-            <span className="chip chip-warn" title="The extraction was unsure — worth a glance">
-              <Icon name="alert" size={10} />
-              Check
-            </span>
-          )}
-          {c.aiError && (
-            <span className="chip chip-warn" title={c.aiError}>
-              Extraction failed
-            </span>
-          )}
-          {c.sentAt && (
-            <span className="chip chip-good">
-              <Icon name="check" size={10} strokeWidth={2.4} />
-              Sent
-            </span>
-          )}
-        </span>
-      </span>
-    </Link>
+          </span>
+        </Link>
+      </div>
+
+      <Confirm
+        open={confirming}
+        title={`Delete ${name}?`}
+        body="This cannot be undone."
+        onClose={() => setConfirming(false)}
+        onConfirm={async () => {
+          if (!user) return
+          try {
+            await deleteContact(user.uid, eventId, c.id)
+            setConfirming(false)
+            toast.ok('Contact deleted.')
+          } catch (e) {
+            toast.err(e)
+          }
+        }}
+      />
+    </>
   )
 }

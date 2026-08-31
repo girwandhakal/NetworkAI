@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icon'
 import { copyText } from '../lib/util'
+import { useTap } from '../lib/useTap'
 import { useToast } from '../state/Toast'
 
 /* ── sheet ───────────────────────────────────────────────── */
@@ -18,8 +19,11 @@ export function Sheet({
   subtitle?: string
   children: ReactNode
 }) {
+  const openedAt = useRef(0)
+
   useEffect(() => {
     if (!open) return
+    openedAt.current = Date.now()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
     // Stop the page behind the sheet from scrolling under it on touch.
@@ -33,7 +37,22 @@ export function Sheet({
 
   if (!open) return null
   return (
-    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()} role="dialog" aria-modal="true">
+    <div
+      className="scrim"
+      onMouseDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        // The tap that just opened this sheet (e.g. a swipe action's delete
+        // button) can still be in flight as a browser-synthesized
+        // compatibility mousedown — landing on the scrim that now covers
+        // that same spot — even though our own state already updated from
+        // its pointerup. Without this guard that stray mousedown reads as
+        // "tapped the backdrop" and closes the sheet the instant it opens.
+        if (Date.now() - openedAt.current < 350) return
+        onClose()
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="sheet">
         <div className="grabber" />
         {title && (
@@ -165,24 +184,31 @@ export function Confirm({
   onClose(): void
 }) {
   const [busy, setBusy] = useState(false)
+  // A sheet like this one almost always opens right after some other
+  // gesture (a swipe revealing it, a long-press, another sheet closing) —
+  // Chromium does not reliably synthesize `click` for a tap that close on
+  // the heels of unrelated pointer activity, even though the tap's own
+  // pointerdown/pointerup land correctly. useTap drives the buttons from
+  // pointerup directly instead of hoping a click follows.
+  const cancelTap = useTap(onClose)
+  const confirmTap = useTap(() => {
+    void (async () => {
+      setBusy(true)
+      try {
+        await onConfirm()
+      } finally {
+        setBusy(false)
+      }
+    })()
+  })
+
   return (
     <Sheet open={open} onClose={onClose} title={title} subtitle={body}>
       <div className="row gap3">
-        <button className="btn btn-ghost grow" onClick={onClose} disabled={busy}>
+        <button className="btn btn-ghost grow" disabled={busy} {...cancelTap}>
           Cancel
         </button>
-        <button
-          className="btn btn-danger grow"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            try {
-              await onConfirm()
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
+        <button className="btn btn-danger grow" disabled={busy} {...confirmTap}>
           {busy ? <span className="spin" /> : <Icon name="trash" size={14} />}
           {confirmLabel}
         </button>
