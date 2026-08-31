@@ -80,6 +80,9 @@ export function useSwipeToDelete(actionWidth: number = SWIPE_ACTION_WIDTH): {
 
   const onPointerDown = useCallback((e: ReactPointerEvent) => {
     if (e.button !== 0) return
+    // A second finger landing on the same row mid-drag must not hijack the
+    // gesture already in progress under a different pointer.
+    if (activePointer.current !== null && activePointer.current !== e.pointerId) return
     start.current = { x: e.clientX, y: e.clientY, offset: offsetRef.current }
     axis.current = null
     activePointer.current = e.pointerId
@@ -112,6 +115,9 @@ export function useSwipeToDelete(actionWidth: number = SWIPE_ACTION_WIDTH): {
 
   const endDrag = useCallback(
     (e: ReactPointerEvent) => {
+      // Ignore a stray up/cancel from a pointer that isn't the one this
+      // gesture is actually tracking (e.g. a second finger resting nearby).
+      if (e.pointerId !== activePointer.current) return
       if (axis.current === 'x') {
         const shouldOpen = offsetRef.current <= -actionWidth / 2
         setOffsetBoth(shouldOpen ? -actionWidth : 0)

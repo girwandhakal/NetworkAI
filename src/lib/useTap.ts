@@ -27,19 +27,22 @@ export interface TapHandlers {
  * handled it, so a tap/click never double-fires the action.
  */
 export function useTap(onTap: () => void): TapHandlers {
-  const start = useRef<{ x: number; y: number } | null>(null)
+  const start = useRef<{ x: number; y: number; pointerId: number } | null>(null)
   const handledByPointer = useRef(false)
 
   const onPointerDown = useCallback((e: ReactPointerEvent) => {
     if (e.button !== 0) return
-    start.current = { x: e.clientX, y: e.clientY }
+    start.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId }
   }, [])
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent) => {
       const from = start.current
+      // A second, unrelated pointer (a resting thumb, a stray touch) lifting
+      // off this element must not complete a tap the *first* pointer started
+      // — only the pointer that actually went down here does.
+      if (!from || e.pointerId !== from.pointerId) return
       start.current = null
-      if (!from) return
       const moved = Math.hypot(e.clientX - from.x, e.clientY - from.y)
       if (moved > TAP_TOLERANCE_PX) return
       handledByPointer.current = true

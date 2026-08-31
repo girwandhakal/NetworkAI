@@ -45,9 +45,11 @@ export function Sheet({
         // button) can still be in flight as a browser-synthesized
         // compatibility mousedown — landing on the scrim that now covers
         // that same spot — even though our own state already updated from
-        // its pointerup. Without this guard that stray mousedown reads as
-        // "tapped the backdrop" and closes the sheet the instant it opens.
-        if (Date.now() - openedAt.current < 350) return
+        // its pointerup. That stray event arrives within tens of ms, not
+        // hundreds; keep this window short enough that it can't also eat a
+        // person's own deliberate quick tap-to-dismiss on an unrelated,
+        // plain-click-opened sheet (e.g. "Sign out").
+        if (Date.now() - openedAt.current < 120) return
         onClose()
       }}
       role="dialog"
@@ -184,19 +186,30 @@ export function Confirm({
   onClose(): void
 }) {
   const [busy, setBusy] = useState(false)
+  // useTap fires straight from pointerup, which — unlike a native
+  // click-on-<button disabled> — isn't suppressed by the `disabled`
+  // attribute while React's re-render carrying it is still in flight. A
+  // ref makes the guard synchronous instead of racing that render.
+  const busyRef = useRef(false)
   // A sheet like this one almost always opens right after some other
   // gesture (a swipe revealing it, a long-press, another sheet closing) —
   // Chromium does not reliably synthesize `click` for a tap that close on
   // the heels of unrelated pointer activity, even though the tap's own
   // pointerdown/pointerup land correctly. useTap drives the buttons from
   // pointerup directly instead of hoping a click follows.
-  const cancelTap = useTap(onClose)
+  const cancelTap = useTap(() => {
+    if (busyRef.current) return
+    onClose()
+  })
   const confirmTap = useTap(() => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
     void (async () => {
-      setBusy(true)
       try {
         await onConfirm()
       } finally {
+        busyRef.current = false
         setBusy(false)
       }
     })()

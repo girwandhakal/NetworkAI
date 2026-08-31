@@ -452,8 +452,7 @@ ul {
   transition:
     border-color var(--fast) var(--ease),
     box-shadow var(--base) var(--ease),
-    background var(--fast) var(--ease),
-    transform var(--slow) var(--ease);
+    background var(--fast) var(--ease);
 }
 .card-tap:hover {
   border-color: var(--line-strong);
@@ -462,11 +461,6 @@ ul {
 .card-tap:active {
   background: var(--surface-2);
   box-shadow: var(--shadow-xs);
-}
-/* A live drag (see .swipe-row below) sets `transform` on every pointermove —
-   suspend the transition so the row tracks the finger instead of chasing it. */
-.card-tap.dragging {
-  transition: none;
 }
 
 /* Swipe-to-delete (ContactRow). A long-press on an <a> fights the browser's
@@ -483,6 +477,19 @@ ul {
 }
 .swipe-row > .card-tap {
   touch-action: pan-y;
+  /* Scoped here, not on the base .card-tap rule, so unrelated card-tap
+     consumers elsewhere (event cards, capture options, ...) aren't affected
+     by a transition on a property they never animate. */
+  transition:
+    border-color var(--fast) var(--ease),
+    box-shadow var(--base) var(--ease),
+    background var(--fast) var(--ease),
+    transform var(--slow) var(--ease);
+}
+/* A live drag sets `transform` on every pointermove — suspend the
+   transition so the row tracks the finger instead of chasing it. */
+.swipe-row > .card-tap.dragging {
+  transition: none;
 }
 .swipe-action {
   position: absolute;
